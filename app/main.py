@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from . import engine, export, store
 from .llm import PRESETS, llm
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 STATIC = Path(__file__).parent / "static"
 TOKEN = os.getenv("KAPSI_TOKEN", "")
 

@@ -44,7 +44,7 @@ $$(".side a").forEach((a) => (a.onclick = () => { stack.length = 0; nav(a.datase
 const title = (t) => { $("#title").textContent = t; document.title = t + " · Kapsi-Q"; };
 
 function chart(el, cfg) { if (window.Chart) charts.push(new Chart(el, cfg)); }
-const radar = (el, data, label = "Conformité %") => chart(el, { type: "radar", data: { labels: Object.keys(data).map((k) => (k === "Annexe A" ? k : "Ch. " + k)), datasets: [{ label, data: Object.values(data), fill: true, backgroundColor: "rgba(29,127,184,.18)", borderColor: "#1d7fb8", pointBackgroundColor: "#1d7fb8" }] }, options: { maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } }, plugins: { legend: { display: false } } } });
+const radar = (el, data, label = "Conformité %") => chart(el, { type: "radar", data: { labels: Object.keys(data).map((k) => (k === "Annexe A" ? k : "Ch. " + k)), datasets: [{ label, data: Object.values(data), fill: true, backgroundColor: "rgba(240,53,138,.18)", borderColor: "#9b2cf0", pointBackgroundColor: "#f0358a" }] }, options: { maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } }, plugins: { legend: { display: false } } } });
 
 /* -------------------------------------------------------- tableau de bord */
 ROUTES.dashboard = async () => {
@@ -195,7 +195,7 @@ ROUTES.project = async (id, std, tab = "gap") => {
   } else {
     const gens = CAT.generators.filter((g) => !g.only || g.only.includes(std));
     el.innerHTML = `<section class="card"><h2>Livrables ${esc(std)}</h2><div class="grid">${gens.map((g) => `<button class="tile" data-k="${g.kind}">${esc(g.label)}<small>${g.only ? "Spécifique " + esc(g.only[0]) : "Adapté à " + esc(std)}</small></button>`).join("")}
-      <button class="tile" id="ai" style="border-color:var(--accent)">✎ Rédiger un document avec l'IA<small>Procédure, instruction, manuel…</small></button></div>
+      <button class="tile" id="ai" style="border:2px solid var(--pink)">✎ Rédiger un document avec l'IA<small>Procédure, instruction, manuel…</small></button></div>
       <p class="note">Chaque livrable est un projet à relire et valider par le consultant. Export Word disponible.</p></section>`;
     $$(".tile[data-k]").forEach((t) => (t.onclick = () => busy(t, async () => { const d = await send(`/api/clients/${id}/generate`, { kind: t.dataset.k, standard: std }); nav("doc", d.id); })));
     $("#ai").onclick = () => nav("writer", id, std);
