@@ -1,0 +1,23 @@
+# Installation sur le serveur du cabinet :  docker compose up -d
+# Avec IA locale (GPU) :                     docker compose --profile ia up -d
+services:
+  kapsi-iso:
+    build: .
+    restart: unless-stopped
+    ports: ["8000:8000"]
+    volumes: ["kapsi-data:/data"]
+    env_file: [.env]
+
+  ollama:  # optionnel : modèle de langage local, aucune donnée ne sort du serveur
+    profiles: ["ia"]
+    image: ollama/ollama
+    restart: unless-stopped
+    volumes: ["ollama:/root/.ollama"]
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+
+volumes:
+  kapsi-data:
+  ollama:

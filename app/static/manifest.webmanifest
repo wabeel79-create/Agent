@@ -1,0 +1,15 @@
+{
+  "name": "Kapsi ISO",
+  "short_name": "Kapsi ISO",
+  "description": "Assistant ISO privé pour cabinets de conseil — SmartCell Technologies",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7f9",
+  "theme_color": "#0f3d5e",
+  "lang": "fr",
+  "icons": [
+    {"src": "/static/icons/icon.svg", "sizes": "any", "type": "image/svg+xml"},
+    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

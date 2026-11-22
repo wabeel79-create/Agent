@@ -1,0 +1,11 @@
+{
+  "_note": "Synthèse SmartCell des évolutions ISO 9001:2015 -> ISO 9001:2026 (publiée le 16/09/2026, transition prévue de 3 ans). À VÉRIFIER par le consultant contre le texte officiel publié avant tout usage client.",
+  "changes": [
+    {"clause": "4.1 / 4.2", "topic": "Changement climatique", "change": "Le changement climatique doit être considéré comme enjeu potentiel et comme attente possible des parties intéressées (déjà introduit par l'amendement 2024).", "action": "Ajouter une ligne 'climat' dans l'analyse de contexte et la matrice des parties intéressées, avec conclusion argumentée (pertinent / non pertinent)."},
+    {"clause": "5.1", "topic": "Culture qualité et comportement éthique", "change": "La direction doit promouvoir une culture qualité et un comportement éthique.", "action": "Formaliser des engagements éthiques, les intégrer à la politique et prévoir des preuves (communications, charte, sensibilisation)."},
+    {"clause": "6.1", "topic": "Risques et opportunités séparés", "change": "Les risques et les opportunités sont traités de manière plus distincte.", "action": "Scinder le registre en deux parties : risques (menaces) et opportunités, avec des actions propres à chacune."},
+    {"clause": "6.3", "topic": "Planification des modifications", "change": "Exigences de planification des changements précisées.", "action": "Mettre en place une fiche de gestion du changement (objectif, conséquences, ressources, responsabilités)."},
+    {"clause": "7.3", "topic": "Sensibilisation à la culture qualité", "change": "La sensibilisation inclut la culture qualité et le comportement éthique.", "action": "Mettre à jour les supports d'accueil et de sensibilisation."},
+    {"clause": "Structure", "topic": "Structure harmonisée ISO", "change": "Alignement sur la structure harmonisée commune aux normes de systèmes de management.", "action": "Vérifier la cohérence de la numérotation des documents en système intégré (9001/14001/45001)."}
+  ]
+}

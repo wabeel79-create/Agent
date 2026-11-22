@@ -1,0 +1,20 @@
+{
+  "_note": "Matrice de correspondance du système intégré QSE-Énergie (structure harmonisée). Résumés SmartCell.",
+  "standards": ["ISO 9001", "ISO 14001", "ISO 45001", "ISO 50001"],
+  "rows": [
+    {"clause": "4.1", "common": "Contexte de l'organisme", "ISO 9001": "Enjeux qualité", "ISO 14001": "Conditions environnementales", "ISO 45001": "Enjeux SST", "ISO 50001": "Enjeux énergétiques"},
+    {"clause": "4.2", "common": "Parties intéressées", "ISO 9001": "Clients et exigences", "ISO 14001": "Obligations de conformité", "ISO 45001": "Travailleurs et consultation", "ISO 50001": "Exigences légales énergie"},
+    {"clause": "5.2", "common": "Politique", "ISO 9001": "Politique qualité", "ISO 14001": "Protection de l'environnement", "ISO 45001": "Prévention des blessures", "ISO 50001": "Amélioration de la performance énergétique"},
+    {"clause": "5.4", "common": "Participation", "ISO 9001": "-", "ISO 14001": "-", "ISO 45001": "Consultation et participation des travailleurs", "ISO 50001": "-"},
+    {"clause": "6.1", "common": "Risques et opportunités", "ISO 9001": "Risques processus", "ISO 14001": "Aspects environnementaux significatifs", "ISO 45001": "Dangers et évaluation des risques SST", "ISO 50001": "Revue énergétique, usages énergétiques significatifs"},
+    {"clause": "6.2", "common": "Objectifs", "ISO 9001": "Objectifs qualité", "ISO 14001": "Objectifs environnementaux", "ISO 45001": "Objectifs SST", "ISO 50001": "Objectifs, cibles et plans d'actions énergie"},
+    {"clause": "7.2", "common": "Compétences", "ISO 9001": "Matrice des compétences", "ISO 14001": "Compétences environnementales", "ISO 45001": "Compétences SST", "ISO 50001": "Compétences liées aux USE"},
+    {"clause": "7.5", "common": "Informations documentées", "ISO 9001": "Maîtrise documentaire", "ISO 14001": "Idem", "ISO 45001": "Idem", "ISO 50001": "Idem + données énergétiques"},
+    {"clause": "8.1", "common": "Maîtrise opérationnelle", "ISO 9001": "Réalisation produit/service", "ISO 14001": "Maîtrise des aspects", "ISO 45001": "Hiérarchie des mesures de prévention", "ISO 50001": "Exploitation et maintenance des USE"},
+    {"clause": "8.2", "common": "Situations particulières", "ISO 9001": "Exigences clients", "ISO 14001": "Situations d'urgence", "ISO 45001": "Situations d'urgence", "ISO 50001": "Conception (8.2) / Achats (8.3)"},
+    {"clause": "9.1", "common": "Surveillance et mesure", "ISO 9001": "Satisfaction client", "ISO 14001": "Évaluation de la conformité", "ISO 45001": "Évaluation de la conformité", "ISO 50001": "IPÉ et situation énergétique de référence"},
+    {"clause": "9.2", "common": "Audit interne", "ISO 9001": "Programme commun possible (ISO 19011)", "ISO 14001": "Idem", "ISO 45001": "Idem", "ISO 50001": "Idem"},
+    {"clause": "9.3", "common": "Revue de direction", "ISO 9001": "Revue unique intégrée", "ISO 14001": "Idem", "ISO 45001": "Idem", "ISO 50001": "Idem + performance énergétique"},
+    {"clause": "10.2", "common": "Non-conformités et actions correctives", "ISO 9001": "NC produit/processus", "ISO 14001": "NC environnementales", "ISO 45001": "Incidents, accidents, presqu'accidents", "ISO 50001": "NC énergétiques"}
+  ]
+}
