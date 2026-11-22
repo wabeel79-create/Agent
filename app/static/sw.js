@@ -1,5 +1,5 @@
 /* Service worker : met en cache l'interface ; les données passent toujours par le serveur du cabinet. */
-const CACHE = "kapsi-q-v3";
+const CACHE = "kapsi-q-v7";
 const SHELL = ["/", "/static/styles.css", "/static/app.js", "/manifest.webmanifest", "/static/icons/icon.svg", "/static/chart.umd.js"];
 
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())));

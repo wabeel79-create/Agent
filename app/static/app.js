@@ -11,9 +11,43 @@ const ls = {
 let CAT = null;
 let charts = [];
 const stack = [];
-const GRADE_COLOR = { PF: "#2e8b57", C: "#5bb381", OA: "#d08b00", NCm: "#c0392b", NCM: "#8e1b10", NA: "#8a96a0" };
-const stdColor = (s) => CAT?.standards.find((x) => x.code === s)?.color || "#1d7fb8";
-const chip = (s) => `<span class="chip" style="background:${stdColor(s)}">${esc(s)}</span>`;
+const GRADE_COLOR = { PF: "#1e7a4c", C: "#4fae7a", OA: "#b86e00", NCm: "#c92a45", NCM: "#7d1426", NA: "#8a96a0" };
+const stdColor = (s) => CAT?.standards.find((x) => x.code === s)?.color || "#7b2ff7";
+/* Accessibilité : assombrit une couleur jusqu'à un contraste ≥ 4.5:1 avec du texte blanc (WCAG AA) */
+function readable(hex) {
+  let [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const lum = (r, g, b) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+  for (let k = 0; k < 20 && 1.05 / (lum(r, g, b) + 0.05) < 4.6; k++) { r *= 0.92; g *= 0.92; b *= 0.92; }
+  return "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+}
+const chip = (s) => `<span class="chip" style="background:${readable(stdColor(s))}">${esc(s)}</span>`;
+
+/* Accessibilité : relie chaque <label> à son champ, nomme les champs sans label, rend les éléments cliquables utilisables au clavier */
+let uid = 0;
+function a11y(root = document) {
+  $$("label", root).forEach((l) => {
+    if (l.htmlFor || l.querySelector("input,select,textarea")) return;
+    const f = l.nextElementSibling;
+    if (f && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName)) { f.id = f.id || "f" + ++uid; l.htmlFor = f.id; }
+  });
+  $$("input,select,textarea", root).forEach((f) => {
+    if (f.labels?.length || f.getAttribute("aria-label")) return;
+    f.setAttribute("aria-label", f.placeholder || f.name || f.id || "champ");
+  });
+  $$("li[data-id],li[data-a],li[data-d],tr[data-c]", root).forEach((e) => { e.tabIndex = 0; e.classList.add("clickable"); });
+  $$(".tbl", root).forEach((t, i) => { t.tabIndex = 0; t.setAttribute("role", "region"); t.setAttribute("aria-label", "Tableau : " + (t.closest(".card")?.querySelector("h2")?.textContent || i + 1)); });
+}
+document.addEventListener("keydown", (e) => {
+  const t = e.target;
+  if ((e.key === "Enter" || e.key === " ") && t.matches?.(".clickable,.side a")) { e.preventDefault(); t.click(); }
+});
+const GAPL = { C: "Conforme", P: "Partiellement conforme", NC: "Non conforme", NA: "Non applicable" };
+function toggleRow(row, force) {
+  const b = $(".body", row), t = $(".tog", row); const open = force ?? b.hidden;
+  b.hidden = !open; t.setAttribute("aria-expanded", String(open)); row.classList.toggle("open", open);
+}
+document.addEventListener("click", (e) => { const t = e.target.closest?.(".tog"); if (t) toggleRow(t.closest(".clause")); });
+function saved() { const s = $("#savestate"); s.textContent = "✓ Enregistré"; s.classList.add("on"); clearTimeout(saved.t); saved.t = setTimeout(() => s.classList.remove("on"), 1600); }
 const pct = (v) => (v === null || v === undefined ? "—" : v + " %");
 
 function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.remove("hidden"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add("hidden"), 2600); }
@@ -34,13 +68,13 @@ function nav(name, ...args) { stack.push([name, args]); render(); }
 function render() {
   charts.forEach((c) => c.destroy()); charts = [];
   const [name, args] = stack[stack.length - 1];
-  $$(".side a").forEach((a) => a.classList.toggle("on", a.dataset.r === stack[0][0]));
+  $$(".side a").forEach((a) => { const on = a.dataset.r === stack[0][0]; a.classList.toggle("on", on); on ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"); });
   $("#back").classList.toggle("hidden", stack.length < 2);
   window.scrollTo(0, 0);
-  ROUTES[name](...args).catch((e) => { console.error(e); });
+  ROUTES[name](...args).then(() => { a11y(view); $("#title").focus({ preventScroll: true }); }).catch((e) => { console.error(e); });
 }
 $("#back").onclick = () => { if (stack.length > 1) { stack.pop(); render(); } };
-$$(".side a").forEach((a) => (a.onclick = () => { stack.length = 0; nav(a.dataset.r); }));
+$$(".side a").forEach((a) => (a.onclick = (e) => { e.preventDefault(); stack.length = 0; nav(a.dataset.r); }));
 const title = (t) => { $("#title").textContent = t; document.title = t + " · Kapsi-Q"; };
 
 function chart(el, cfg) { if (window.Chart) charts.push(new Chart(el, cfg)); }
@@ -161,9 +195,9 @@ ROUTES.project = async (id, std, tab = "gap") => {
         <p class="row"><button class="btn" id="rep">Générer le rapport d'écarts</button></p></section></div>
       <section class="card"><h2>Exigences ${esc(std)} (${g.clauses.length})</h2>${g.clauses.map((cl) => {
         const a = g.answers[cl.id] || {};
-        return `<details class="clause" data-c="${esc(cl.id)}"><summary><span class="cid">${esc(cl.id)}</span><span class="grow">${esc(cl.title)}</span><span class="seg">${["C", "P", "NC", "NA"].map((k) => `<button type="button" class="g-${k} ${a.status === k ? "on" : ""}" data-s="${k}">${k}</button>`).join("")}</span></summary>
-          <div class="body"><p class="sub">${esc(cl.summary)}</p><b>Questions</b><ul>${cl.questions.map((q) => `<li>${esc(q)}</li>`).join("")}</ul><b>Preuves attendues</b><ul>${cl.evidence.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>
-          <input class="obs" placeholder="Observation" value="${esc(a.note)}"></div></details>`;
+        return `<div class="clause" data-c="${esc(cl.id)}"><div class="head"><button type="button" class="tog" aria-expanded="false"><span class="cid">${esc(cl.id)}</span><span class="grow">${esc(cl.title)}</span><span class="chev" aria-hidden="true">▾</span></button><span class="seg" role="group" aria-label="Évaluation ${esc(cl.id)}">${["C", "P", "NC", "NA"].map((k) => `<button type="button" class="g-${k} ${a.status === k ? "on" : ""}" data-s="${k}" aria-pressed="${a.status === k}" aria-label="${k} — ${GAPL[k]}" title="${GAPL[k]}">${k}</button>`).join("")}</span></div>
+          <div class="body" hidden><p class="sub">${esc(cl.summary)}</p><b>Questions</b><ul>${cl.questions.map((q) => `<li>${esc(q)}</li>`).join("")}</ul><b>Preuves attendues</b><ul>${cl.evidence.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>
+          <input class="obs" placeholder="Observation" aria-label="Observation ${esc(cl.id)}" value="${esc(a.note)}"></div></div>`;
       }).join("")}</section>`;
     let rd;
     const upd = (s) => {
@@ -175,10 +209,10 @@ ROUTES.project = async (id, std, tab = "gap") => {
     const save = async (row) => {
       const on = $(".seg .on", row); if (!on) return;
       const s = await send(`/api/clients/${id}/gap/${encodeURIComponent(std)}`, { answers: { [row.dataset.c]: { status: on.dataset.s, note: $(".obs", row).value } } }, "PUT");
-      upd(s);
+      upd(s); saved();
     };
     $$(".clause").forEach((row) => {
-      $$(".seg button", row).forEach((b) => (b.onclick = (e) => { e.preventDefault(); $$(".seg button", row).forEach((x) => x.classList.remove("on")); b.classList.add("on"); save(row); }));
+      $$(".seg button", row).forEach((b) => (b.onclick = (e) => { e.preventDefault(); $$(".seg button", row).forEach((x) => { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); }); b.classList.add("on"); b.setAttribute("aria-pressed", "true"); save(row); }));
       $(".obs", row).onchange = () => save(row);
     });
     $("#rep").onclick = (e) => busy(e.currentTarget, async () => { const d = await send(`/api/clients/${id}/gap/${encodeURIComponent(std)}/report`); nav("doc", d.id); });
@@ -190,7 +224,7 @@ ROUTES.project = async (id, std, tab = "gap") => {
     const n = CAT.roadmap.reduce((a, ph) => a + ph.tasks.length, 0);
     const bar = () => { const v = Math.round(100 * Object.values(prog).filter(Boolean).length / n); $("#pb").style.width = v + "%"; $("#pv").textContent = v + " %"; };
     bar();
-    $$("input[data-k]").forEach((i) => (i.onchange = async () => { prog[i.dataset.k] = i.checked; bar(); await send(`/api/clients/${id}/projects/${encodeURIComponent(std)}/progress`, { progress: prog }, "PUT"); }));
+    $$("input[data-k]").forEach((i) => (i.onchange = async () => { prog[i.dataset.k] = i.checked; bar(); await send(`/api/clients/${id}/projects/${encodeURIComponent(std)}/progress`, { progress: prog }, "PUT"); saved(); }));
     $("#rdoc").onclick = (e) => busy(e.currentTarget, async () => { const d = await send(`/api/clients/${id}/generate`, { kind: "roadmap", standard: std }); nav("doc", d.id); });
   } else {
     const gens = CAT.generators.filter((g) => !g.only || g.only.includes(std));
@@ -254,11 +288,11 @@ ROUTES.audit = async (aid, std) => {
   <section class="card"><h2>Grille d'audit ${esc(std)}</h2><p class="sub">PF point fort · C conforme · OA opportunité d'amélioration · NCm NC mineure · NCM NC majeure · NA non audité. Enregistrement automatique.</p>
   ${a.clauses[std].map((cl) => {
     const k = `${std}|${cl.id}`; const f = a.findings[k] || {};
-    return `<details class="clause" data-k="${esc(k)}"><summary><span class="cid">${esc(cl.id)}</span><span class="grow">${esc(cl.title)}</span><span class="seg">${Object.keys(CAT.audit_grades).map((g) => `<button type="button" class="g-${g} ${f.grade === g ? "on" : ""}" data-g="${g}" title="${esc(CAT.audit_grades[g])}">${g}</button>`).join("")}</span></summary>
-      <div class="body"><p class="sub">${esc(cl.summary)}</p><b>Questions de l'auditeur</b><ul>${cl.questions.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>
+    return `<div class="clause" data-k="${esc(k)}"><div class="head"><button type="button" class="tog" aria-expanded="false"><span class="cid">${esc(cl.id)}</span><span class="grow">${esc(cl.title)}</span><span class="chev" aria-hidden="true">▾</span></button><span class="seg" role="group" aria-label="Cotation ${esc(cl.id)}">${Object.keys(CAT.audit_grades).map((g) => `<button type="button" class="g-${g} ${f.grade === g ? "on" : ""}" data-g="${g}" aria-pressed="${f.grade === g}" aria-label="${g} — ${esc(CAT.audit_grades[g])}" title="${esc(CAT.audit_grades[g])}">${g}</button>`).join("")}</span></div>
+      <div class="body" hidden><p class="sub">${esc(cl.summary)}</p><b>Questions de l'auditeur</b><ul>${cl.questions.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>
       <b>Preuves à échantillonner</b><ul>${cl.evidence.map((q) => `<li>${esc(q)}</li>`).join("")}<li>Enregistrements sur au moins 3 mois ; entretien pilote + opérateur ; cohérence document / terrain</li></ul>
       <label>Constat</label><textarea class="note-f" placeholder="Constat factuel, exigence concernée">${esc(f.note)}</textarea>
-      <label>Preuve d'audit (référence, document, personne interrogée)</label><input class="ev-f" value="${esc(f.evidence)}"></div></details>`;
+      <label>Preuve d'audit (référence, document, personne interrogée)</label><input class="ev-f" value="${esc(f.evidence)}"></div></div>`;
   }).join("")}</section>`;
   $$(".tabs button[data-s]").forEach((b) => (b.onclick = () => { stack[stack.length - 1][1] = [aid, b.dataset.s]; render(); }));
   const dnData = () => Object.keys(CAT.audit_grades).filter((g) => g !== "NA");
@@ -274,10 +308,10 @@ ROUTES.audit = async (aid, std) => {
   const save = async (row) => {
     const on = $(".seg .on", row);
     const s = await send(`/api/audits/${aid}/findings`, { findings: { [row.dataset.k]: { grade: on ? on.dataset.g : "", note: $(".note-f", row).value, evidence: $(".ev-f", row).value } } }, "PUT");
-    upd(s);
+    upd(s); saved();
   };
   $$(".clause").forEach((row) => {
-    $$(".seg button", row).forEach((b) => (b.onclick = (e) => { e.preventDefault(); const was = b.classList.contains("on"); $$(".seg button", row).forEach((x) => x.classList.remove("on")); if (!was) b.classList.add("on"); if (["NCm", "NCM", "OA"].includes(b.dataset.g) && !was) row.open = true; save(row); }));
+    $$(".seg button", row).forEach((b) => (b.onclick = (e) => { e.preventDefault(); const was = b.classList.contains("on"); $$(".seg button", row).forEach((x) => { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); }); if (!was) { b.classList.add("on"); b.setAttribute("aria-pressed", "true"); } if (["NCm", "NCM", "OA"].includes(b.dataset.g) && !was) toggleRow(row, true); save(row); }));
     $(".note-f", row).onchange = () => save(row); $(".ev-f", row).onchange = () => save(row);
   });
   $("#plan").onclick = (e) => busy(e.currentTarget, async () => { const d = await send(`/api/audits/${aid}/plan`); nav("doc", d.id); });
@@ -317,7 +351,7 @@ ROUTES.writer = async (cid, std) => {
   const cl = await get("/api/clients");
   const h = await get("/api/health");
   if (!cl.length) { view.innerHTML = `<div class="card empty">Créez d'abord un client.</div>`; return; }
-  view.innerHTML = `${h.ai.provider === "none" ? `<div class="warnbox" style="margin-bottom:1rem">Aucun modèle d'IA connecté : Kapsi-Q produira un modèle structuré. Connectez Llama ou DeepSeek dans <a href="#" id="gs">Réglages</a> pour obtenir un texte rédigé.</div>` : ""}
+  view.innerHTML = `${h.ai.provider === "none" ? `<div class="warnbox" style="margin-bottom:1rem">Aucun modèle d'IA connecté : Kapsi-Q produira un modèle structuré. Connectez Llama ou DeepSeek dans <button type="button" class="btn sm alt" id="gs">Ouvrir les Réglages</button> pour obtenir un texte rédigé.</div>` : ""}
     <section class="card"><form id="f">
     <div class="row"><div class="grow"><label>Client</label><select name="cid">${cl.map((c) => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div>
     <div class="grow"><label>Norme</label><select name="std">${CAT.standards.map((s) => `<option ${s.code === std ? "selected" : ""}>${esc(s.code)}</option>`).join("")}</select></div>
@@ -371,6 +405,16 @@ ROUTES.settings = async () => {
   };
   $("#test").onclick = (e) => busy(e.currentTarget, async () => { const r = await send("/api/settings/llm/test"); $("#res").textContent = (r.ok ? "✓ " : "✗ ") + r.message; });
   $("#stok").onclick = () => { ls.set("kapsi_token", $("#tok").value.trim()); toast("Jeton enregistré"); };
+};
+
+/* ------------------------------------------------- bouton revenir en haut */
+const totop = $("#totop");
+const onScroll = () => totop.classList.toggle("show", window.scrollY > 400);
+window.addEventListener("scroll", onScroll, { passive: true });
+totop.onclick = () => {
+  const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: smooth ? "smooth" : "auto" });
+  $("#title").focus({ preventScroll: true });
 };
 
 /* --------------------------------------------------------------------- init */

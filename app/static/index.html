@@ -14,22 +14,24 @@
 <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+<a class="skip" href="#view">Aller au contenu</a>
 <div class="shell">
-  <nav class="side" id="nav">
+  <nav class="side" id="nav" aria-label="Navigation principale">
     <div class="brand"><img src="/static/icons/icon.svg" alt=""><div><b>Kapsi-Q</b><small>Systèmes de management ISO</small></div></div>
-    <a data-r="dashboard"><span>▦</span>Tableau de bord</a>
-    <a data-r="clients"><span>◉</span>Clients</a>
-    <a data-r="audits"><span>✓</span>Audits</a>
-    <a data-r="writer"><span>✎</span>Rédacteur IA</a>
-    <a data-r="assistant"><span>?</span>Assistant</a>
-    <a data-r="settings"><span>⚙</span>Réglages</a>
+    <a data-r="dashboard" href="#dashboard"><span aria-hidden="true">▦</span><b class="l">Tableau de bord</b><b class="s">Accueil</b></a>
+    <a data-r="clients" href="#clients"><span aria-hidden="true">◉</span><b class="l">Clients</b><b class="s">Clients</b></a>
+    <a data-r="audits" href="#audits"><span aria-hidden="true">✓</span><b class="l">Audits</b><b class="s">Audits</b></a>
+    <a data-r="writer" href="#writer"><span aria-hidden="true">✎</span><b class="l">Rédacteur IA</b><b class="s">Rédacteur</b></a>
+    <a data-r="assistant" href="#assistant"><span aria-hidden="true">?</span><b class="l">Assistant</b><b class="s">Assistant</b></a>
+    <a data-r="settings" href="#settings"><span aria-hidden="true">⚙</span><b class="l">Réglages</b><b class="s">Réglages</b></a>
     <div class="side-foot" id="status">…</div>
   </nav>
   <div class="main">
-    <header class="top"><button id="back" class="icon hidden" aria-label="Retour">‹</button><h1 id="title">Kapsi-Q</h1><span id="aibadge" class="badge"></span></header>
-    <main id="view"></main>
+    <header class="top"><button id="back" class="icon hidden" aria-label="Retour">‹</button><h1 id="title" tabindex="-1">Kapsi-Q</h1><span id="savestate" class="savestate" role="status" aria-live="polite"></span><span id="aibadge" class="badge"></span></header>
+    <main id="view" aria-live="polite"></main>
   </div>
 </div>
+<button id="totop" class="totop" type="button" aria-label="Revenir en haut de la page" title="Revenir en haut"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 <div id="toast" class="toast hidden" role="status"></div>
 <script src="/static/chart.umd.js"></script>
 <script src="/static/app.js"></script>
