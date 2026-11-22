@@ -1,68 +1,78 @@
-# Kapsi ISO
+# Kapsi-Q
 
-Assistant ISO **privé** pour cabinets de conseil, par **SmartCell Technologies** (Soukra, Ariana).
-Installé sur le serveur du cabinet : aucune donnée client ne sort, aucune connexion Internet nécessaire.
+**Plateforme de mise en place des systèmes de management ISO et d'audit tierce partie**, par **SmartCell Technologies** (Soukra, Ariana).
+Installée sur le serveur du cabinet de conseil : les données clients restent chez lui, et la plateforme fonctionne sans Internet.
 
-## Fonctions (v0.1)
+## Normes couvertes (v0.2)
 
-| Livrable | Description |
+ISO 9001 · ISO 14001 · ISO 45001 · ISO 21001 · ISO 27001 (avec annexe A et Déclaration d'applicabilité) · ISO 50001 · ISO 22000 · ISO 42001 (IA).
+Toutes partagent la structure harmonisée (chapitres 4 à 10) plus leurs exigences spécifiques. **Pour ajouter une norme**, ajoutez une entrée dans `app/knowledge/standards.json`, sans modifier de code.
+
+## Modules
+
+| Module | Contenu |
 |---|---|
-| Politique qualité | Projet personnalisé au client, prêt à signer |
-| Cartographie des processus | Processus management / réalisation / support, construits depuis les activités du client |
-| Procédure maîtrise documentaire (§7.5) | Procédure complète avec responsabilités |
-| Check-list d'audit interne | Questions et preuves attendues, chapitres 4 à 10 |
-| **Analyse d'écarts** | Saisie C / P / NC / NA par exigence → taux de conformité + plan d'actions |
-| **Transition ISO 9001:2015 → 2026** | Écarts et plan d'actions pour les clients déjà certifiés |
-| Matrice système intégré | Correspondance ISO 9001 / 14001 / 45001 / 50001 |
-| Quiz de formation | QCM de sensibilisation pour les sessions de formation |
-| Assistant ISO | Questions-réponses sur les exigences |
+| **Tableau de bord** | Indicateurs du cabinet, projets par norme, constats d'audit, avancement de chaque projet (graphiques) |
+| **Mise en place** (par client et par norme) | Diagnostic d'écarts avec radar de conformité en temps réel · feuille de route en 9 phases (du diagnostic à la certification) · livrables |
+| **Livrables** | Politique · cartographie des processus · registre des risques / aspects environnementaux / DUER / risques SI / HACCP · objectifs et indicateurs · procédure documentaire · programme d'audit interne · check-list d'audit · PV de revue de direction · quiz de formation · DdA 27001 (93 mesures) · transition ISO 9001:2026 · matrice système intégré |
+| **Audit tierce partie** | Étape 1, étape 2, surveillance, renouvellement, audit à blanc · audits intégrés multi-normes · plan d'audit avec durée indicative (IAF MD5) · grille de cotation PF / C / OA / NC mineure / NC majeure · questions et preuves à échantillonner · décision proposée automatiquement · rapport d'audit avec fiches de NC et plan d'actions correctives |
+| **Rédacteur IA** | Rédige procédures, instructions, manuels, supports de formation… pour un client et une norme |
+| **Assistant** | Questions-réponses sur les exigences de toutes les normes |
 
-Tous les livrables s'affichent dans l'application et s'exportent en **Word (.docx)** à l'en-tête du cabinet.
+Chaque document s'affiche dans la plateforme et s'exporte en **Word (.docx)** ou en PDF (impression).
 
-## Démarrage rapide (démo sur PC)
+## Démarrage rapide
+
+**Windows :** double-cliquer sur `demarrer_windows.bat`. Le script installe les dépendances, charge des clients de démonstration fictifs et ouvre le navigateur.
+
+**Manuel :**
+```bash
+python -m pip install -r requirements.txt
+python -m app.demo            # facultatif : données de démonstration
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+Puis ouvrir http://localhost:8000. Sur iPhone (même Wi-Fi) : `http://IP-DU-PC:8000` → Partager → « Sur l'écran d'accueil ».
+
+## Intelligence artificielle (Réglages → Moteur d'IA)
+
+| Fournisseur | Coût | Confidentialité |
+|---|---|---|
+| Aucun (par défaut) | Gratuit | Générateurs Kapsi-Q, 100 % local |
+| **Ollama** (Llama 3, DeepSeek-R1, Qwen) | Gratuit | **100 % local**, recommandé chez le client |
+| Groq (Llama) | Offre gratuite limitée | Données envoyées en ligne |
+| OpenRouter (modèles `:free`) | Gratuit, limité | Données envoyées en ligne |
+| DeepSeek API | Payant, bas coût | Données envoyées en ligne |
+| Kapsi (module Python) | — | Local |
+
+Ollama : installer depuis ollama.com, puis `ollama pull llama3.1:8b` (ou `deepseek-r1:8b`). Choisir « Ollama » dans Réglages et cliquer sur **Tester la connexion**.
+Les noms de modèles gratuits changent souvent chez les fournisseurs en ligne : ils sont modifiables dans Réglages.
+Si le modèle ne répond pas, Kapsi-Q revient automatiquement aux générateurs, donc la démo ne bloque jamais.
+
+## Installation serveur (Docker)
 
 ```bash
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+cp .env.example .env
+docker compose up -d                       # plateforme
+docker compose --profile ia up -d          # + Ollama sur GPU NVIDIA
+docker compose exec ollama ollama pull llama3.1:8b
 ```
-
-Ouvrir http://localhost:8000 . Sur iPhone (même Wi-Fi) : `http://IP-DU-PC:8000` dans Safari → Partager → « Sur l'écran d'accueil ».
-
-## Installation chez le client (serveur)
-
-```bash
-cp .env.example .env          # renseigner KAPSI_CABINET et KAPSI_TOKEN
-docker compose up -d          # mode hors ligne (générateurs)
-docker compose --profile ia up -d && docker compose exec ollama ollama pull qwen2.5:7b   # avec IA locale (GPU NVIDIA)
-```
-
-Puis mettre `KAPSI_BACKEND=ollama` dans `.env` et `docker compose up -d` à nouveau.
-
-## Moteurs IA
-
-| `KAPSI_BACKEND` | Fonctionnement |
-|---|---|
-| `none` (défaut) | Générateurs déterministes : fiables, instantanés, sans GPU |
-| `ollama` | Modèle local via Ollama, enrichit les textes et l'assistant |
-| `kapsi` | Modèle Kapsi : module Python (`KAPSI_MODEL_MODULE`) exposant `generate(prompt) -> str` |
-
-Si le modèle ne répond pas, l'application revient automatiquement aux générateurs.
+Dans Réglages, choisir Ollama avec l'URL `http://ollama:11434`.
 
 ## Sécurité
 
-- Données dans SQLite (`/data`, volume Docker), sur le serveur du cabinet.
-- Jeton d'accès optionnel (`KAPSI_TOKEN`), à saisir dans ⚙ Réglages.
-- Pour un accès hors du bureau : passer par un VPN ou un reverse proxy HTTPS ; ne pas exposer le port 8000 directement sur Internet.
+- Base SQLite locale (`data/`, ou volume Docker `/data`), clés API jamais renvoyées au navigateur.
+- Jeton d'accès optionnel (`KAPSI_TOKEN`).
+- Pour un accès hors du bureau : VPN ou reverse proxy HTTPS ; ne pas exposer le port 8000 directement sur Internet.
 
-## Avertissement normatif
+## Avertissements
 
-La base de connaissances contient des **résumés rédigés par SmartCell**, pas le texte des normes ISO, protégé par le droit d'auteur.
-Les éléments ISO 9001:2026 sont à vérifier contre le texte officiel. Tous les livrables sont des projets à valider par le consultant.
+- La base contient des **résumés rédigés par SmartCell**, pas le texte des normes ISO, protégé par le droit d'auteur.
+- Durées d'audit **indicatives** : l'organisme certificateur fixe la durée officielle.
+- Éléments ISO 9001:2026 à vérifier contre le texte publié. Tous les livrables sont des projets à valider par le consultant.
 
-## Tests
+## Développement
 
 ```bash
-pip install -r requirements-dev.txt && pytest -q
+python -m pip install -r requirements-dev.txt && python -m pytest -q
 ```
-
 API documentée : http://localhost:8000/api/docs

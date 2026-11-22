@@ -3,25 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kapsi ISO</title>
-<meta name="theme-color" content="#0f3d5e">
+<title>Kapsi-Q</title>
+<meta name="theme-color" content="#0b2a42">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kapsi ISO">
+<meta name="apple-mobile-web-app-title" content="Kapsi-Q">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
 <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-<header class="top">
-  <button id="back" class="icon hidden" aria-label="Retour">‹</button>
-  <h1 id="title">Kapsi ISO</h1>
-  <button id="settings" class="icon" aria-label="Réglages">⚙</button>
-</header>
-<main id="view"></main>
+<div class="shell">
+  <nav class="side" id="nav">
+    <div class="brand"><img src="/static/icons/icon.svg" alt=""><div><b>Kapsi-Q</b><small>Systèmes de management ISO</small></div></div>
+    <a data-r="dashboard"><span>▦</span>Tableau de bord</a>
+    <a data-r="clients"><span>◉</span>Clients</a>
+    <a data-r="audits"><span>✓</span>Audits</a>
+    <a data-r="writer"><span>✎</span>Rédacteur IA</a>
+    <a data-r="assistant"><span>?</span>Assistant</a>
+    <a data-r="settings"><span>⚙</span>Réglages</a>
+    <div class="side-foot" id="status">…</div>
+  </nav>
+  <div class="main">
+    <header class="top"><button id="back" class="icon hidden" aria-label="Retour">‹</button><h1 id="title">Kapsi-Q</h1><span id="aibadge" class="badge"></span></header>
+    <main id="view"></main>
+  </div>
+</div>
 <div id="toast" class="toast hidden" role="status"></div>
-<footer class="foot"><span id="status">…</span> · SmartCell Technologies</footer>
+<script src="/static/chart.umd.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

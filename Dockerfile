@@ -1,5 +1,5 @@
 FROM python:3.12-slim
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 KAPSI_DB=/data/kapsi_iso.db
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 KAPSI_DB=/data/kapsi_q.db
 WORKDIR /srv
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

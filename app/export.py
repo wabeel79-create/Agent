@@ -23,7 +23,7 @@ def to_docx(doc: dict) -> bytes:
         sec.page_width, sec.page_height = sec.page_height, sec.page_width
 
     head = d.sections[0].header.paragraphs[0]
-    head.text = f"{CABINET} — {doc.get('client', '')}"
+    head.text = f"{CABINET} · Kapsi-Q — {doc.get('client', '')}"
     d.add_heading(doc["title"], level=0)
     meta = d.add_paragraph(f"Date : {doc.get('date', '')}    Version : 0 (projet)")
     meta.runs[0].font.color.rgb = RGBColor(0x55, 0x55, 0x55)
