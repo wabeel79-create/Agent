@@ -1,4 +1,4 @@
-# Kapsi-Q
+# Kapsi-Q 1.0
 
 **Plateforme de mise en place des systèmes de management ISO et d'audit tierce partie**, par **SmartCell Technologies** (Soukra, Ariana).
 Installée sur le serveur du cabinet de conseil : les données clients restent chez lui, et la plateforme fonctionne sans Internet.
@@ -21,17 +21,21 @@ Toutes partagent la structure harmonisée (chapitres 4 à 10) plus leurs exigenc
 
 Chaque document s'affiche dans la plateforme et s'exporte en **Word (.docx)** ou en PDF (impression).
 
-## Démarrage rapide
+## Démarrage rapide (Windows)
 
-**Windows :** double-cliquer sur `demarrer_windows.bat`. Le script installe les dépendances, charge des clients de démonstration fictifs et ouvre le navigateur.
+1. Installer Python 3.12 (64 bits) depuis python.org en cochant « Add python.exe to PATH ».
+2. Copier le dossier Kapsi-Q dans `C:\Kapsi-Q`, puis double-cliquer sur **installer.bat** (installation sans Internet grâce au dossier `wheels`).
+3. Lancer avec le raccourci **Kapsi-Q** du Bureau (ou `demarrer_kapsi.bat`). Le navigateur s'ouvre sur http://localhost:8000.
 
-**Manuel :**
-```bash
-python -m pip install -r requirements.txt
-python -m app.demo            # facultatif : données de démonstration
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-Puis ouvrir http://localhost:8000. Sur iPhone (même Wi-Fi) : `http://IP-DU-PC:8000` → Partager → « Sur l'écran d'accueil ».
+| Script | Rôle |
+|---|---|
+| `installer.bat` | Environnement isolé `.venv`, composants, configuration `kapsi.env`, raccourci Bureau |
+| `demarrer_kapsi.bat` | Lance Kapsi-Q (production, sans données de démonstration) |
+| `charger_demo.bat` | Ajoute 4 clients fictifs « (démo) » |
+| `sauvegarder.bat` / `restaurer.bat` | Sauvegarde datée de la base / restauration |
+
+Linux / macOS : `./demarrer.sh`. Configuration : fichier `kapsi.env` (modèle `kapsi.env.example`).
+Sur iPhone (même Wi-Fi) : `http://IP-DU-POSTE:8000` → Partager → « Sur l'écran d'accueil ».
 
 ## Intelligence artificielle (Réglages → Moteur d'IA)
 
