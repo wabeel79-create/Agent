@@ -35,7 +35,7 @@ function a11y(root = document) {
     if (f.labels?.length || f.getAttribute("aria-label")) return;
     f.setAttribute("aria-label", f.placeholder || f.name || f.id || "champ");
   });
-  $$("li[data-id],li[data-a],li[data-d],tr[data-c]", root).forEach((e) => { e.tabIndex = 0; e.classList.add("clickable"); });
+  $$("li[data-id],li[data-a],li[data-d],tr[data-c],li[data-run-id]", root).forEach((e) => { e.tabIndex = 0; e.classList.add("clickable"); });
   $$(".tbl", root).forEach((t, i) => { t.tabIndex = 0; t.setAttribute("role", "region"); t.setAttribute("aria-label", "Tableau : " + (t.closest(".card")?.querySelector("h2")?.textContent || i + 1)); });
 }
 document.addEventListener("keydown", (e) => {
@@ -94,6 +94,8 @@ ROUTES.dashboard = async () => {
     <div class="kpi"><b>${pct(avg(gaps))}</b><small>Conformité moyenne (diagnostics)</small></div>
     <div class="kpi"><b>${d.audits}</b><small>Audits</small></div>
     <div class="kpi"><b>${d.documents}</b><small>Livrables générés</small></div>
+    <div class="kpi"><b>${d.to_validate}</b><small>Documents à valider</small></div>
+    <div class="kpi"><b>${d.actions_open}</b><small>Actions ouvertes</small></div>
   </div>
   <div class="cols">
     <section class="card"><h2>Projets par norme</h2><div class="chartbox"><canvas id="c1"></canvas></div></section>
@@ -147,7 +149,7 @@ ROUTES.clientForm = async (id) => {
 ROUTES.client = async (id, tab = "projects") => {
   const c = await get(`/api/clients/${id}`);
   title(c.name);
-  const tabs = [["projects", "Mise en place"], ["audits", "Audits"], ["docs", "Documents"], ["info", "Fiche"]];
+  const tabs = [["projects", "Mise en place"], ["agents", "Agents"], ["audits", "Audits"], ["actions", "Actions"], ["trainings", "Formations"], ["docs", "Documents"], ["info", "Fiche"]];
   view.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button data-t="${k}" class="${k === tab ? "on" : ""}">${l}</button>`).join("")}</div><div id="tab"></div>`;
   $$(".tabs button").forEach((b) => (b.onclick = () => { stack[stack.length - 1][1] = [id, b.dataset.t]; render(); }));
   const el = $("#tab");
@@ -168,8 +170,15 @@ ROUTES.client = async (id, tab = "projects") => {
     el.innerHTML = `<div class="row" style="margin-bottom:1rem"><button class="btn" id="na">+ Nouvel audit</button></div><section class="card">${c.audits.length ? `<ul class="list">${c.audits.map((a) => `<li data-a="${a.id}"><div><b>${esc(CAT.audit_types[a.type])}</b> · ${esc(a.date)}<div>${a.standards.map(chip).join("")}</div></div><div class="sub">${pct(a.stats.conformity)}<br>${esc(a.stats.verdict)}</div></li>`).join("")}</ul>` : `<div class="empty">Aucun audit.</div>`}</section>`;
     $("#na").onclick = () => nav("auditForm", id);
     $$("li[data-a]").forEach((l) => (l.onclick = () => nav("audit", +l.dataset.a)));
+  } else if (tab === "agents") {
+    await agentsPanel(el, c);
+  } else if (tab === "actions") {
+    await actionsPanel(el, c);
+  } else if (tab === "trainings") {
+    await trainingsPanel(el, c);
   } else if (tab === "docs") {
-    el.innerHTML = `<section class="card">${c.documents.length ? `<ul class="list">${c.documents.map((d) => `<li data-d="${d.id}"><div>${esc(d.title)}<div class="sub">${d.standard ? chip(d.standard.split(",")[0]) : ""} ${esc(d.created_at)}</div></div><span>›</span></li>`).join("")}</ul>` : `<div class="empty">Aucun document.</div>`}</section>`;
+    const n = c.documents.filter((d) => d.status !== "Validé").length;
+    el.innerHTML = `<section class="card"><h2>Documents (${c.documents.length}) · ${n} à valider</h2>${c.documents.length ? `<ul class="list">${c.documents.map((d) => `<li data-d="${d.id}"><div>${esc(d.title)}<div class="sub">${d.standard ? chip(d.standard.split(",")[0]) : ""} ${statusPill(d.status)} ${d.agent ? `<span class="pill" style="background:#5b3a8a">Agent</span>` : ""} ${esc(d.created_at)}</div></div><span>›</span></li>`).join("")}</ul>` : `<div class="empty">Aucun document.</div>`}</section>`;
     $$("li[data-d]").forEach((l) => (l.onclick = () => nav("doc", +l.dataset.d)));
   } else {
     el.innerHTML = `<section class="card"><table><tbody>${[["Secteur", c.sector], ["Effectif", c.size], ["Activités", c.activities], ["Contact", c.contact], ["Créé le", c.created_at]].map(([k, v]) => `<tr><th style="width:30%">${k}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>
@@ -320,6 +329,84 @@ ROUTES.audit = async (aid, std) => {
   $("#del").onclick = async () => { if (!confirm("Supprimer cet audit ?")) return; await send(`/api/audits/${aid}`, undefined, "DELETE"); stack.pop(); render(); };
 };
 
+/* ---------------------------------------------------------------- agents */
+const statusPill = (st) => st === "Validé" ? `<span class="pill" style="background:#1e7a4c">Validé</span>` : `<span class="pill" style="background:#b86e00">À valider</span>`;
+const runPill = (st) => `<span class="pill" style="background:${st === "Terminé" ? "#1e7a4c" : st === "Échec" ? "#c92a45" : "#7b2ff7"}">${esc(st)}</span>`;
+let AGENTS = null;
+
+async function agentsPanel(el, c, std) {
+  AGENTS = AGENTS || await get("/api/agents");
+  const stds = c.projects.map((p) => p.standard);
+  std = std || stds[0] || "ISO 9001";
+  const runs = await get(`/api/clients/${c.id}/runs`);
+  el.innerHTML = `<section class="card"><div class="row"><h2 class="grow" style="margin:0">Équipe d'agents</h2>
+      <label class="sub" for="astd" style="margin:0">Norme</label><select id="astd" style="max-width:180px">${(stds.length ? stds : CAT.standards.map((s) => s.code)).map((s) => `<option ${s === std ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></div>
+      <p class="sub">Les agents travaillent sur les dossiers autorisés (Réglages → Documents et Drive) et sur le diagnostic. Tout ce qu'ils produisent est à valider par une personne compétente.</p>
+      <div class="grid">${AGENTS.map((a) => `<div class="tile agent ${a.key === "mission" ? "lead" : ""}"><b>${esc(a.name)}</b><small>${esc(a.desc)}</small><button class="btn sm" data-run="${a.key}" style="margin-top:.6rem">Lancer</button></div>`).join("")}</div></section>
+    <section class="card"><h2>Exécutions</h2>${runs.length ? `<ul class="list">${runs.map((r) => `<li data-run-id="${r.id}" class="clickable" tabindex="0"><div><b>${esc(r.agent_name)}</b> · ${chip(r.standard)}<div class="sub">${esc(r.created_at)}</div></div>${runPill(r.status)}</li>`).join("")}</ul>` : `<p class="sub">Aucune exécution.</p>`}</section>`;
+  $("#astd").onchange = () => agentsPanel(el, c, $("#astd").value);
+  $$("[data-run]", el).forEach((b) => (b.onclick = async () => { const r = await send(`/api/clients/${c.id}/agents/${b.dataset.run}`, { standard: $("#astd").value }); nav("run", r.run_id); }));
+  $$("[data-run-id]", el).forEach((l) => (l.onclick = () => nav("run", +l.dataset.runId)));
+}
+
+ROUTES.agents = async () => {
+  title("Agents");
+  const cl = await get("/api/clients");
+  if (!cl.length) { view.innerHTML = `<div class="card empty">Créez d'abord un client.</div>`; return; }
+  const runs = await get("/api/runs");
+  view.innerHTML = `<section class="card"><div class="row"><label for="acl" class="sub" style="margin:0">Client</label><select id="acl" class="grow" style="max-width:360px">${cl.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></div></section><div id="apanel"></div>
+    <section class="card"><h2>Dernières exécutions (tous clients)</h2>${runs.length ? `<ul class="list">${runs.map((r) => `<li data-run-id="${r.id}"><div><b>${esc(r.agent_name)}</b> · ${esc(r.client)} · ${chip(r.standard)}<div class="sub">${esc(r.created_at)}</div></div>${runPill(r.status)}</li>`).join("")}</ul>` : `<p class="sub">Aucune exécution.</p>`}</section>`;
+  const load = async () => agentsPanel($("#apanel"), await get(`/api/clients/${$("#acl").value}`));
+  $("#acl").onchange = load; await load();
+  $$("section:last-child [data-run-id]").forEach((l) => (l.onclick = () => nav("run", +l.dataset.runId)));
+};
+
+ROUTES.run = async (rid) => {
+  const r = await get(`/api/runs/${rid}`);
+  title(`${r.agent_name} — ${r.client}`);
+  const k = r.outputs.readiness;
+  view.innerHTML = `<section class="card"><div class="row"><div class="grow"><b>${esc(r.agent_name)}</b> · ${esc(r.client)} · ${chip(r.standard)}<div class="sub">Démarré ${esc(r.created_at)}${r.finished_at ? " · terminé " + esc(r.finished_at) : ""}</div></div>${runPill(r.status)}</div>
+      ${r.n_proposals ? `<p class="row" style="margin-top:.8rem"><button class="btn" id="apply">Appliquer les ${r.n_proposals} propositions au diagnostic</button><span class="sub">Vos réponses déjà saisies ne sont jamais remplacées.</span></p>` : ""}
+      ${r.outputs.audit_id ? `<p><button class="btn alt" id="openaudit">Ouvrir l'audit proposé pour le relire</button></p>` : ""}</section>
+    ${k ? `<section class="card"><h2>Indice de préparation à la certification</h2><div class="row"><div class="ring" style="--p:${k.score};--c:#e8327f" data-v="${k.score}"></div><div class="grow"><b>${esc(k.verdict)}</b><ul class="sub">${k.alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div></div></section>` : ""}
+    <div class="cols"><section class="card"><h2>Journal de l'agent</h2><div class="runlog" id="log">${r.log.map((l) => `<div class="l-${l.kind}"><span>${esc(l.t)}</span> ${esc(l.msg)}</div>`).join("")}</div></section>
+    <section class="card"><h2>Documents produits (${(r.outputs.documents || []).length})</h2>${(r.outputs.documents || []).length ? `<ul class="list">${r.outputs.documents.map((d) => `<li data-d="${d.id}"><div>${esc(d.title)}<div class="sub">${statusPill(d.status)}</div></div><span>›</span></li>`).join("")}</ul>` : `<p class="sub">Aucun document pour l'instant.</p>`}</section></div>`;
+  const lg = $("#log"); lg.scrollTop = lg.scrollHeight;
+  $$("li[data-d]").forEach((l) => (l.onclick = () => nav("doc", +l.dataset.d)));
+  $("#apply")?.addEventListener("click", async () => { const x = await send(`/api/runs/${rid}/apply`); toast(`${x.applied} exigence(s) pré-remplie(s)`); });
+  $("#openaudit")?.addEventListener("click", () => nav("audit", r.outputs.audit_id));
+  if (r.status === "En cours") setTimeout(() => { const cur = stack[stack.length - 1]; if (cur && cur[0] === "run" && cur[1][0] === rid) render(); }, 1500);
+};
+
+async function actionsPanel(el, c) {
+  const acts = await get(`/api/clients/${c.id}/actions`);
+  const today = new Date().toISOString().slice(0, 10);
+  const open = acts.filter((a) => a.status !== "Clôturée").length, late = acts.filter((a) => a.status !== "Clôturée" && a.due && a.due < today).length;
+  el.innerHTML = `<section class="card"><h2>Actions correctives et d'amélioration · ${open} ouverte(s) · ${late} en retard</h2>
+    ${acts.length ? `<div class="tbl"><table><thead><tr><th>N°</th><th>Norme</th><th>Exigence</th><th>Constat</th><th>Cause</th><th>Action</th><th>Responsable</th><th>Échéance</th><th>Statut</th></tr></thead><tbody>
+    ${acts.map((a) => `<tr data-a="${a.id}"><td>${a.id}</td><td>${chip(a.standard || "")}</td><td>${esc(a.clause)}<div class="sub">${esc(a.source)}</div></td><td>${esc(a.finding)}</td>
+      <td><textarea data-f="cause" rows="3">${esc(a.cause)}</textarea></td><td><textarea data-f="action" rows="3">${esc(a.action)}</textarea></td>
+      <td><input data-f="owner" value="${esc(a.owner)}"></td><td><input type="date" data-f="due" value="${esc(a.due)}" ${a.status !== "Clôturée" && a.due && a.due < today ? 'style="border-color:#c92a45"' : ""}></td>
+      <td><select data-f="status">${["Ouverte", "En cours", "Clôturée"].map((s) => `<option ${s === a.status ? "selected" : ""}>${s}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="sub">Aucune action. Les agents Auditeur interne et Pré-certification en créent pour chaque non-conformité.</p>`}
+    <details style="margin-top:1rem"><summary class="sub" style="cursor:pointer">+ Ajouter une action</summary>
+      <div class="row" style="margin-top:.5rem"><select id="nstd" style="max-width:150px">${c.projects.map((p) => `<option>${esc(p.standard)}</option>`).join("")}</select><input id="ncl" placeholder="Exigence (ex. 7.5)" style="max-width:160px"><input id="nfi" class="grow" placeholder="Constat"><button class="btn" id="nadd">Ajouter</button></div></details></section>`;
+  $$("tr[data-a] [data-f]", el).forEach((f) => (f.onchange = async () => { await send(`/api/actions/${f.closest("tr").dataset.a}`, { [f.dataset.f]: f.value }, "PUT"); saved(); }));
+  $("#nadd")?.addEventListener("click", async () => { if (!$("#nfi").value.trim()) return; await send(`/api/clients/${c.id}/actions`, { standard: $("#nstd").value, clause: $("#ncl").value, finding: $("#nfi").value, source: "Saisie manuelle", status: "Ouverte" }); actionsPanel(el, c); });
+}
+
+async function trainingsPanel(el, c) {
+  const trs = await get(`/api/clients/${c.id}/trainings`);
+  const done = trs.filter((t) => t.status === "Réalisée").length;
+  el.innerHTML = `<section class="card"><h2>Formations · ${done}/${trs.length} réalisée(s)</h2>
+    ${trs.length ? `<div class="tbl"><table><thead><tr><th>Date</th><th>Norme</th><th>Module</th><th>Public</th><th>Durée</th><th>Support</th><th>Statut</th></tr></thead><tbody>
+    ${trs.map((t) => `<tr><td>${esc(t.planned)}</td><td>${chip(t.standard)}</td><td>${esc(t.module)}</td><td>${esc(t.audience)}</td><td>${esc(t.duration)}</td><td>${t.document_id ? `<button class="btn sm alt" data-doc="${t.document_id}">Ouvrir</button>` : ""}</td>
+      <td><select data-t="${t.id}">${["Planifiée", "Réalisée", "Annulée"].map((s) => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="sub">Aucune formation planifiée. Lancez l'agent Formateur (onglet Agents).</p>`}</section>`;
+  $$("[data-t]", el).forEach((s) => (s.onchange = async () => { await send(`/api/trainings/${s.dataset.t}`, { status: s.value }, "PUT"); saved(); }));
+  $$("[data-doc]", el).forEach((b) => (b.onclick = () => nav("doc", +b.dataset.doc)));
+}
+
 /* --------------------------------------------------------------- documents */
 ROUTES.doc = async (did) => {
   const d = await get(`/api/documents/${did}`);
@@ -330,7 +417,12 @@ ROUTES.doc = async (did) => {
     ${(s.paragraphs || []).map((p) => `<p>${esc(p)}</p>`).join("")}
     ${s.bullets ? `<ul>${s.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}
     ${s.table ? (s.table.rows.length ? `<div class="tbl"><table><thead><tr>${s.table.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${s.table.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="sub">Aucun élément.</p>`) : ""}</section>`;
-  view.innerHTML = `<div class="row" style="margin-bottom:1rem"><button class="btn" id="dl">⬇ Télécharger (Word)</button><button class="btn alt" id="pr">Imprimer / PDF</button>
+  const meta = d.meta || {};
+  view.innerHTML = `<div class="card row" style="justify-content:space-between"><div>${statusPill(meta.status)} ${meta.agent ? `<span class="pill" style="background:#5b3a8a">Produit par un agent</span>` : ""}
+      ${meta.validated_by ? `<span class="sub">Validé par ${esc(meta.validated_by)} le ${esc(meta.validated_at)}</span>` : `<span class="sub">À relire et valider par une personne compétente avant diffusion.</span>`}
+      ${meta.path ? `<div class="sub" style="margin-top:.3rem">Fichier Word : <code>${esc(meta.path)}</code></div>` : ""}</div>
+      ${meta.status !== "Validé" ? `<button class="btn" id="val">✓ Valider ce document</button>` : ""}</div>
+    <div class="row" style="margin-bottom:1rem"><button class="btn" id="dl">⬇ Télécharger (Word)</button><button class="btn alt" id="pr">Imprimer / PDF</button>
     <span class="sub">${esc(d.client)} · ${esc(d.date)} ${d.standard ? "· " + esc(d.standard) : ""} ${d.ai ? '· <span class="badge">rédigé avec l\'IA</span>' : ""}</span></div>
     <div class="doc">${d.sections.map(sec).join("")}</div><p class="note">${esc(d.footer)}</p>`;
   d.sections.forEach((s, i) => {
@@ -339,6 +431,12 @@ ROUTES.doc = async (did) => {
     else chart($("#ch" + i), { type: "bar", data: { labels: Object.keys(s.chart.data), datasets: [{ data: Object.values(s.chart.data), backgroundColor: ["#2e8b57", "#5bb381", "#d08b00", "#c0392b", "#8e1b10"], borderRadius: 6 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
   });
   $("#pr").onclick = () => (NATIVE ? NATIVE.print(d.title) : window.print());
+  $("#val")?.addEventListener("click", async () => {
+    const by = prompt("Nom et fonction de la personne qui valide (ex. N. Selmi, consultant) :", ls.get("kapsi_validator"));
+    if (!by || by.trim().length < 2) return;
+    ls.set("kapsi_validator", by.trim());
+    await send(`/api/documents/${did}/validate`, { by: by.trim() }); toast("Document validé"); render();
+  });
   $("#dl").onclick = async () => {
     const r = await api(`/api/documents/${did}/docx`); const blob = await r.blob();
     const name = d.title.replace(/[^\w-]+/g, "_").slice(0, 80) + ".docx";
@@ -401,6 +499,13 @@ ROUTES.settings = async () => {
     <details style="margin-top:.8rem"><summary class="sub" style="cursor:pointer">Installer Llama / DeepSeek gratuitement en local (Ollama)</summary><ol class="sub">
       <li>Télécharger Ollama : ollama.com (Windows, macOS, Linux)</li><li>Dans un terminal : <code>ollama pull llama3.1:8b</code> ou <code>ollama pull deepseek-r1:8b</code></li>
       <li>Choisir « Ollama » ci-dessus, modèle <code>llama3.1:8b</code>, puis Tester</li></ol></details></section>
+    <section class="card"><h2>Documents et Drive (accès des agents)</h2>
+      <p class="sub">Les agents lisent uniquement les dossiers listés ici. Cochez « écriture » pour le dossier où ils déposent leurs documents Word (sous-dossier « Kapsi-Q »). <b>Google Drive</b> : installez « Google Drive pour ordinateur » sur le poste hôte, puis ajoutez son dossier (ex. <code>G:\\Mon Drive</code>).</p>
+      <div id="roots"></div>
+      <div class="row" style="margin-top:.6rem"><input id="rpath" class="grow" placeholder="Chemin du dossier sur le poste hôte, ex. D:\\Clients\\Câbles du Cap Bon" style="min-width:240px"><input id="rlabel" placeholder="Nom (facultatif)" style="max-width:200px">
+        <label class="check" style="margin:0"><input type="checkbox" id="rwrite"> écriture</label><button class="btn" id="radd">Ajouter</button></div>
+      <p class="row" style="margin-top:.8rem"><button class="btn alt" id="ridx" data-busy="Indexation…">Indexer maintenant</button><span class="sub" id="rstats"></span></p>
+      <div class="row"><input id="fq" class="grow" placeholder="Rechercher dans les documents (ex. revue de direction)"><button class="btn alt" id="fgo">Rechercher</button></div><div id="fres"></div></section>
     <section class="card"><h2>Accès</h2><label>Jeton d'accès (si exigé par le serveur)</label><input id="tok" value="${esc(ls.get("kapsi_token"))}"><p><button class="btn alt" id="stok">Enregistrer le jeton</button></p></section>
     <section class="card"><h2>Connecter un téléphone</h2>
       <div class="phone"><div id="qr" class="qr" role="img" aria-label="QR code de l'adresse de Kapsi-Q"></div>
@@ -419,6 +524,18 @@ ROUTES.settings = async () => {
   $("#test").onclick = (e) => busy(e.currentTarget, async () => { const r = await send("/api/settings/llm/test"); $("#res").textContent = (r.ok ? "✓ " : "✗ ") + r.message; });
   $("#stok").onclick = () => { ls.set("kapsi_token", $("#tok").value.trim()); toast("Jeton enregistré"); };
   $("#chg")?.addEventListener("click", () => NATIVE.changeServer());
+  const drawRoots = (d) => {
+    const st = d.stats || {};
+    $("#roots").innerHTML = d.roots.length ? `<div class="tbl"><table><thead><tr><th>Nom</th><th>Chemin</th><th>Accès</th><th></th></tr></thead><tbody>${d.roots.map((r) => `<tr><td>${esc(r.label)}</td><td><code>${esc(r.path)}</code>${r.exists ? "" : ' <span class="pill" style="background:#c92a45">introuvable</span>'}</td><td>${r.write ? "Lecture + écriture" : "Lecture seule"}</td><td><button class="btn sm danger" data-del="${esc(r.path)}">Retirer</button></td></tr>`).join("")}</tbody></table></div>` : `<p class="sub">Aucun dossier : les agents travaillent alors uniquement à partir du diagnostic saisi.</p>`;
+    if (st.fichiers !== undefined) $("#rstats").textContent = `${st.fichiers} fichiers indexés${st.dernier_index ? " · dernière indexation " + st.dernier_index : ""}`;
+    $$("[data-del]").forEach((b) => (b.onclick = async () => { if (!confirm("Retirer ce dossier ? Les agents n'y auront plus accès.")) return; drawRoots(await send(`/api/files/roots?path=${encodeURIComponent(b.dataset.del)}`, undefined, "DELETE")); }));
+  };
+  drawRoots(await get("/api/files/roots"));
+  $("#radd").onclick = async () => { const p = $("#rpath").value.trim(); if (!p) return; await send("/api/files/roots", { path: p, label: $("#rlabel").value.trim(), write: $("#rwrite").checked }); $("#rpath").value = ""; drawRoots(await get("/api/files/roots")); toast("Dossier ajouté"); };
+  $("#ridx").onclick = (e) => busy(e.currentTarget, async () => { const r = await send("/api/files/index"); toast(`${r.lus} fichier(s) lu(s)`); drawRoots(await get("/api/files/roots")); });
+  const fsearch = async () => { const q = $("#fq").value.trim(); if (!q) return; const r = await get(`/api/files/search?q=${encodeURIComponent(q)}`);
+    $("#fres").innerHTML = r.length ? `<ul class="list">${r.map((x) => `<li style="cursor:default"><div><b>${esc(x.name)}</b><div class="sub">${esc(x.extrait)}</div><div class="sub"><code>${esc(x.path)}</code></div></div></li>`).join("")}</ul>` : `<p class="sub">Aucun résultat.</p>`; };
+  $("#fgo").onclick = fsearch; $("#fq").onkeydown = (e) => { if (e.key === "Enter") fsearch(); };
   try {
     const n = await get("/api/network");
     const urls = n.urls.length ? n.urls : [location.origin];

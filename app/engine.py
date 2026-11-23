@@ -27,7 +27,7 @@ AUDIT_GRADES = {"PF": "Point fort", "C": "Conforme", "OA": "Opportunité d'amél
                 "NCm": "Non-conformité mineure", "NCM": "Non-conformité majeure", "NA": "Non audité / NA"}
 AUDIT_TYPES = {"stage1": "Audit initial — étape 1", "stage2": "Audit initial — étape 2 (certification)",
                "surveillance": "Audit de surveillance", "recertification": "Audit de renouvellement",
-               "blanc": "Audit à blanc (pré-certification)"}
+               "blanc": "Audit à blanc (pré-certification)", "interne": "Audit interne"}
 
 
 # ------------------------------------------------------------ connaissances
@@ -351,7 +351,7 @@ def audit_duration(size: int, stds: list[str], atype: str) -> dict:
         initial *= 0.8  # réduction possible pour un système intégré
     r = lambda x: max(0.5, round(x * 2) / 2)  # noqa: E731
     days = {"stage1": r(initial * 0.3), "stage2": r(initial * 0.7), "surveillance": r(initial / 3),
-            "recertification": r(initial * 2 / 3), "blanc": r(initial * 0.5)}[atype]
+            "recertification": r(initial * 2 / 3), "blanc": r(initial * 0.5), "interne": r(initial * 0.4)}[atype]
     return {"initial_total": r(initial), "days": days}
 
 

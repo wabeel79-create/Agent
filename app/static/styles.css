@@ -63,7 +63,7 @@ textarea{min-height:84px;resize:vertical}
 .toast{position:fixed;left:50%;bottom:5.5rem;transform:translateX(-50%);background:#1d2b36;color:#fff;padding:.65rem 1.1rem;border-radius:10px;z-index:99}
 .hidden{display:none!important}.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
 .empty{text-align:center;padding:2rem;color:var(--muted)}
-main>.row .sub,main>.note,main>.row>p.sub{color:#e6c6d8}
+main>.row:not(.card) .sub,main>.note,main>.row:not(.card)>p.sub{color:#e6c6d8}
 th{background:#fde6ee!important}.score{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent!important}
 .phase{border-left-color:var(--pink)!important}.clause .cid{color:var(--violet)!important}
 .side a:hover{background:rgba(240,53,138,.14)}.brand img{box-shadow:0 0 0 2px rgba(240,53,138,.5)}
@@ -109,3 +109,10 @@ th{background:#fde6ee!important}.score{background:var(--grad);-webkit-background
 .qr{width:180px;height:180px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px;flex:0 0 180px}
 .qr svg{width:100%;height:100%}
 .urls{display:flex;flex-direction:column;gap:.35rem;margin:.4rem 0 .6rem}.urls code{background:var(--soft);padding:.45rem .7rem;border-radius:8px;font-size:1rem;color:var(--violet);font-weight:600;word-break:break-all}
+
+/* Agents */
+.tile.agent{display:flex;flex-direction:column;align-items:flex-start;cursor:default}.tile.agent.lead{border:2px solid var(--pink);background:linear-gradient(160deg,#ffe4ec,#fff)}
+.runlog{max-height:420px;overflow:auto;font-size:.86rem;background:#1f1024;color:#f3dde8;border-radius:10px;padding:.7rem .8rem;font-family:ui-monospace,Consolas,monospace}
+.runlog div{padding:.12rem 0;white-space:pre-wrap}.runlog span{color:#9a8496;margin-right:.4rem}
+.runlog .l-step{color:#ff8fc8;font-weight:700;margin-top:.4rem}.runlog .l-ok{color:#8ff0b8}.runlog .l-warn{color:#ffd27a}.runlog .l-error{color:#ff8a8a}.runlog .l-doc{color:#cbb6ff}
+td textarea,td input,td select{font-size:.85rem;padding:.4rem;min-width:120px}

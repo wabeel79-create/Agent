@@ -1,4 +1,4 @@
-# Kapsi-Q 1.0
+# Kapsi-Q 2.0
 
 **Plateforme de mise en place des systèmes de management ISO et d'audit tierce partie**, par **SmartCell Technologies** (Soukra, Ariana).
 Installée sur le serveur du cabinet de conseil : les données clients restent chez lui, et la plateforme fonctionne sans Internet.
@@ -18,6 +18,9 @@ Toutes partagent la structure harmonisée (chapitres 4 à 10) plus leurs exigenc
 | **Audit tierce partie** | Étape 1, étape 2, surveillance, renouvellement, audit à blanc · audits intégrés multi-normes · plan d'audit avec durée indicative (IAF MD5) · grille de cotation PF / C / OA / NC mineure / NC majeure · questions et preuves à échantillonner · décision proposée automatiquement · rapport d'audit avec fiches de NC et plan d'actions correctives |
 | **Rédacteur IA** | Rédige procédures, instructions, manuels, supports de formation… pour un client et une norme |
 | **Assistant** | Questions-réponses sur les exigences de toutes les normes |
+| **Agents (v2.0)** | 8 agents qui font le travail d'un responsable qualité et d'un auditeur interne : analyse des preuves dans les dossiers et le Drive du client, système documentaire et procédures, formations, audit interne, actions correctives, pilotage jusqu'à la certification, audit à blanc. Voir `docs/GUIDE_AGENTS.md` |
+| **Actions / Formations** | Plan d'actions correctives suivi (responsable, échéance, retards) et plan de formation (statut, supports, émargements) |
+| **Documents et Drive** | Dossiers du poste hôte (y compris Google Drive pour ordinateur) indexés et consultables par les agents, en lecture seule ou en écriture |
 
 Chaque document s'affiche dans la plateforme et s'exporte en **Word (.docx)** ou en PDF (impression).
 
@@ -61,6 +64,13 @@ docker compose --profile ia up -d          # + Ollama sur GPU NVIDIA
 docker compose exec ollama ollama pull llama3.1:8b
 ```
 Dans Réglages, choisir Ollama avec l'URL `http://ollama:11434`.
+
+## Agents : ce qu'ils font et ce qu'ils ne font pas
+
+- Ils **préparent** tout le travail d'un consultant et d'un auditeur interne ; chaque document sort avec le statut **« À valider »** et doit être relu et validé par une personne compétente (ISO 19011 pour les audits internes).
+- Ils **ne délivrent pas de certificat** : seule une certification par un **organisme accrédité** (ISO/IEC 17021-1) est reconnue. L'agent « Pré-certification » est une simulation qui prépare l'organisme à cet audit.
+- Ils ne remplacent jamais une réponse saisie par un humain dans le diagnostic.
+- Ils lisent uniquement les dossiers déclarés dans Réglages → Documents et Drive, écrivent uniquement dans le sous-dossier `Kapsi-Q` du dossier autorisé en écriture, et n'écrasent jamais un fichier.
 
 ## Sécurité
 

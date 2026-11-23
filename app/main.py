@@ -14,15 +14,16 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import engine, export, store
+from . import agents, engine, export, files, store
 from .llm import PRESETS, llm
 
-VERSION = "1.0.0"
+VERSION = "2.0.0"
 STATIC = Path(__file__).parent / "static"
 TOKEN = os.getenv("KAPSI_TOKEN", "")
 
 app = FastAPI(title="Kapsi-Q", version=VERSION, docs_url="/api/docs")
 store.init()
+files.init()
 llm.configure(store.get_settings())
 
 
@@ -77,6 +78,36 @@ class WriteIn(BaseModel):
 class AskIn(BaseModel):
     question: str = Field(min_length=2, max_length=2000)
     standard: str | None = None
+
+
+class RunIn(BaseModel):
+    standard: str
+
+
+class RootIn(BaseModel):
+    path: str = Field(min_length=1, max_length=500)
+    label: str = ""
+    write: bool = False
+
+
+class ActionIn(BaseModel):
+    standard: str | None = None
+    source: str | None = None
+    clause: str | None = None
+    finding: str | None = None
+    cause: str | None = None
+    action: str | None = None
+    owner: str | None = None
+    due: str | None = None
+    status: str | None = None
+
+
+class StatusIn(BaseModel):
+    status: str
+
+
+class ValidateIn(BaseModel):
+    by: str = Field(min_length=2, max_length=120)
 
 
 class LLMIn(BaseModel):
@@ -169,7 +200,10 @@ def dashboard():
     by_std = {}
     for p in proj:
         by_std[p["standard"]] = by_std.get(p["standard"], 0) + 1
+    acts = store.list_actions()
     return {"clients": len(clients), "projects": proj, "audits": len(audits), "documents": len(store.list_documents()),
+            "actions_open": sum(1 for a in acts if a["status"] != "Clôturée"), "runs": len(store.list_runs(limit=10000)),
+            "to_validate": sum(1 for d in store.list_documents() if d.get("status") != "Validé"),
             "findings": findings, "by_standard": by_std,
             "recent_audits": [{"id": a["id"], "client": names.get(a["client_id"], "?"), "client_id": a["client_id"],
                                "type": engine.AUDIT_TYPES.get(a["type"], a["type"]), "standards": a["standards"],
@@ -328,13 +362,153 @@ def delete_audit(aid: int):
     return {"ok": True}
 
 
+# ------------------------------------------------------------------ agents
+def _host_only(request: Request) -> None:
+    """Les dossiers autorisés ne se modifient que depuis le poste hôte (ou avec le jeton)."""
+    host = request.client.host if request.client else ""
+    if not TOKEN and host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+        raise HTTPException(403, "Pour des raisons de sécurité, les dossiers autorisés se modifient depuis le poste qui héberge Kapsi-Q.")
+
+
+@app.get("/api/agents", dependencies=A)
+def agent_list():
+    return [{"key": k, "name": v[0], "desc": v[1]} for k, v in agents.AGENTS.items()]
+
+
+@app.post("/api/clients/{cid}/agents/{key}", dependencies=A)
+def agent_start(cid: int, key: str, r: RunIn):
+    _client(cid)
+    if key not in agents.AGENTS:
+        raise HTTPException(400, "Agent inconnu")
+    std = _std(r.standard)
+    store.add_project(cid, std)
+    return {"run_id": agents.start(cid, key, std)}
+
+
+@app.get("/api/runs", dependencies=A)
+def runs_all():
+    names = {c["id"]: c["name"] for c in store.list_clients()}
+    return [{**r, "client": names.get(r["client_id"], "?"), "agent_name": agents.AGENTS.get(r["agent"], (r["agent"],))[0]} for r in store.list_runs(limit=30)]
+
+
+@app.get("/api/clients/{cid}/runs", dependencies=A)
+def runs_client(cid: int):
+    return [{**r, "agent_name": agents.AGENTS.get(r["agent"], (r["agent"],))[0]} for r in store.list_runs(cid)]
+
+
+@app.get("/api/runs/{rid}", dependencies=A)
+def run_get(rid: int):
+    r = store.get_run(rid)
+    if not r:
+        raise HTTPException(404, "Exécution introuvable")
+    docs = {d["id"]: d for d in store.list_documents(r["client_id"])}
+    for d in r["outputs"].get("documents", []):
+        d["status"] = docs.get(d["id"], {}).get("status")
+    r["client"] = (store.get_client(r["client_id"]) or {}).get("name")
+    r["agent_name"] = agents.AGENTS.get(r["agent"], (r["agent"],))[0]
+    r["n_proposals"] = len(r["outputs"].get("gap_proposals") or {})
+    return r
+
+
+@app.post("/api/runs/{rid}/apply", dependencies=A)
+def run_apply(rid: int):
+    r = store.get_run(rid)
+    if not r or not r["outputs"].get("gap_proposals"):
+        raise HTTPException(400, "Aucune proposition à appliquer")
+    n = agents.apply_proposals(r["client_id"], r["standard"], r["outputs"]["gap_proposals"])
+    return {"applied": n}
+
+
+@app.get("/api/clients/{cid}/readiness/{std}", dependencies=A)
+def readiness(cid: int, std: str):
+    _client(cid)
+    return agents.readiness(cid, _std(std))
+
+
+# ------------------------------------------------------- fichiers et Drive
+@app.get("/api/files/roots", dependencies=A)
+def roots_get():
+    return {"roots": files.roots(), "stats": files.stats()}
+
+
+@app.post("/api/files/roots", dependencies=A)
+def roots_add(r: RootIn, request: Request):
+    _host_only(request)
+    try:
+        return {"roots": files.add_root(r.path, r.label, r.write)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/files/roots", dependencies=A)
+def roots_del(path: str, request: Request):
+    _host_only(request)
+    return {"roots": files.remove_root(path)}
+
+
+@app.post("/api/files/index", dependencies=A)
+def files_index():
+    return {**files.index_all(), **files.stats()}
+
+
+@app.get("/api/files/search", dependencies=A)
+def files_search(q: str):
+    return files.search(q, limit=15)
+
+
+# --------------------------------------------------------- actions et formations
+@app.get("/api/clients/{cid}/actions", dependencies=A)
+def actions_get(cid: int):
+    _client(cid)
+    return store.list_actions(cid)
+
+
+@app.post("/api/clients/{cid}/actions", dependencies=A)
+def actions_add(cid: int, a: ActionIn):
+    _client(cid)
+    return {"id": store.add_action(cid, {k: v for k, v in a.model_dump().items() if v is not None})}
+
+
+@app.put("/api/actions/{aid}", dependencies=A)
+def actions_upd(aid: int, a: ActionIn):
+    if a.status and a.status not in ("Ouverte", "En cours", "Clôturée"):
+        raise HTTPException(400, "Statut invalide")
+    r = store.update_action(aid, {k: v for k, v in a.model_dump().items() if v is not None})
+    if not r:
+        raise HTTPException(404, "Action introuvable")
+    return r
+
+
+@app.get("/api/clients/{cid}/trainings", dependencies=A)
+def trainings_get(cid: int):
+    _client(cid)
+    return store.list_trainings(cid)
+
+
+@app.put("/api/trainings/{tid}", dependencies=A)
+def trainings_upd(tid: int, s: StatusIn):
+    if s.status not in ("Planifiée", "Réalisée", "Annulée"):
+        raise HTTPException(400, "Statut invalide")
+    store.update_training(tid, s.status)
+    return {"ok": True}
+
+
+@app.post("/api/documents/{did}/validate", dependencies=A)
+def doc_validate(did: int, v: ValidateIn):
+    if not store.get_document(did):
+        raise HTTPException(404, "Document introuvable")
+    store.validate_document(did, v.by)
+    return {"ok": True}
+
+
 # --------------------------------------------------------------- documents
 @app.get("/api/documents/{did}", dependencies=A)
 def get_document(did: int):
     d = store.get_document(did)
     if not d:
         raise HTTPException(404, "Document introuvable")
-    return d
+    meta = store._one("SELECT status, validated_by, validated_at, path, agent FROM documents WHERE id=?", (did,)) or {}
+    return {**d, "meta": meta}
 
 
 @app.delete("/api/documents/{did}", dependencies=A)

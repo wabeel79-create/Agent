@@ -21,7 +21,18 @@ CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, clie
 CREATE TABLE IF NOT EXISTS audits (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, type TEXT,
   standards TEXT, date TEXT, lead_auditor TEXT, findings TEXT DEFAULT '{}', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS agent_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, agent TEXT, standard TEXT,
+  status TEXT, log TEXT DEFAULT '[]', outputs TEXT DEFAULT '{}', created_at TEXT DEFAULT CURRENT_TIMESTAMP, finished_at TEXT);
+CREATE TABLE IF NOT EXISTS actions (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, standard TEXT, source TEXT,
+  clause TEXT, finding TEXT, cause TEXT, action TEXT, owner TEXT, due TEXT, status TEXT DEFAULT 'Ouverte',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS trainings (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER, standard TEXT, module TEXT,
+  audience TEXT, duration TEXT, planned TEXT, status TEXT DEFAULT 'Planifiée', document_id INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 """
+
+MIGRATIONS = [("documents", "status", "TEXT DEFAULT 'À valider'"), ("documents", "validated_by", "TEXT"),
+              ("documents", "validated_at", "TEXT"), ("documents", "path", "TEXT"), ("documents", "agent", "TEXT")]
 
 
 @contextmanager
@@ -39,6 +50,10 @@ def conn():
 def init() -> None:
     with conn() as c:
         c.executescript(SCHEMA)
+        for table, col, decl in MIGRATIONS:
+            cols = {r[1] for r in c.execute(f"PRAGMA table_info({table})")}
+            if col not in cols:
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
 
 
 def _rows(sql, args=()):
@@ -79,7 +94,7 @@ def update_client(cid, d):
 
 def delete_client(cid):
     with conn() as c:
-        for t in ("projects", "gap", "documents", "audits"):
+        for t in ("projects", "gap", "documents", "audits", "agent_runs", "actions", "trainings"):
             c.execute(f"DELETE FROM {t} WHERE client_id=?", (cid,))
         c.execute("DELETE FROM clients WHERE id=?", (cid,))
 
@@ -120,13 +135,17 @@ def get_gap(cid, std):
 
 
 # documents
-def save_document(cid, doc):
-    return _exec("INSERT INTO documents(client_id,kind,standard,title,body) VALUES (?,?,?,?,?)",
-                 (cid, doc["kind"], doc.get("standard", ""), doc["title"], json.dumps(doc, ensure_ascii=False)))
+def save_document(cid, doc, agent=None, path=None):
+    return _exec("INSERT INTO documents(client_id,kind,standard,title,body,agent,path) VALUES (?,?,?,?,?,?,?)",
+                 (cid, doc["kind"], doc.get("standard", ""), doc["title"], json.dumps(doc, ensure_ascii=False), agent, path))
+
+
+def validate_document(did, by):
+    _exec("UPDATE documents SET status='Validé', validated_by=?, validated_at=datetime('now','localtime') WHERE id=?", (by, did))
 
 
 def list_documents(cid=None):
-    q = "SELECT id,client_id,kind,standard,title,created_at FROM documents" + (" WHERE client_id=?" if cid else "") + " ORDER BY id DESC"
+    q = "SELECT id,client_id,kind,standard,title,created_at,status,validated_by,validated_at,path,agent FROM documents" + (" WHERE client_id=?" if cid else "") + " ORDER BY id DESC"
     return _rows(q, (cid,) if cid else ())
 
 
@@ -182,3 +201,70 @@ def set_settings(d, prefix="llm."):
     with conn() as c:
         for k, v in d.items():
             c.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", (prefix + k, v))
+
+
+# exécutions d'agents
+def create_run(cid, agent, standard):
+    return _exec("INSERT INTO agent_runs(client_id,agent,standard,status,created_at) VALUES (?,?,?,'En cours',datetime('now','localtime'))", (cid, agent, standard))
+
+
+def update_run(rid, log=None, outputs=None, status=None):
+    with conn() as c:
+        if log is not None:
+            c.execute("UPDATE agent_runs SET log=? WHERE id=?", (json.dumps(log, ensure_ascii=False), rid))
+        if outputs is not None:
+            c.execute("UPDATE agent_runs SET outputs=? WHERE id=?", (json.dumps(outputs, ensure_ascii=False), rid))
+        if status is not None:
+            c.execute("UPDATE agent_runs SET status=?, finished_at=CASE WHEN ? IN ('Terminé','Échec') THEN datetime('now','localtime') ELSE finished_at END WHERE id=?", (status, status, rid))
+
+
+def get_run(rid):
+    r = _one("SELECT * FROM agent_runs WHERE id=?", (rid,))
+    if r:
+        r["log"] = json.loads(r["log"] or "[]"); r["outputs"] = json.loads(r["outputs"] or "{}")
+    return r
+
+
+def list_runs(cid=None, limit=50):
+    q = "SELECT id,client_id,agent,standard,status,created_at,finished_at FROM agent_runs" + (" WHERE client_id=?" if cid else "") + " ORDER BY id DESC LIMIT ?"
+    return _rows(q, ((cid, limit) if cid else (limit,)))
+
+
+# actions correctives (CAPA)
+ACTION_FIELDS = ("standard", "source", "clause", "finding", "cause", "action", "owner", "due", "status")
+
+
+def add_action(cid, d):
+    return _exec("INSERT INTO actions(client_id,standard,source,clause,finding,cause,action,owner,due,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                 (cid, *[d.get(k, "Ouverte" if k == "status" else "") for k in ACTION_FIELDS]))
+
+
+def update_action(aid, d):
+    sets = [k for k in ACTION_FIELDS if k in d]
+    if sets:
+        _exec(f"UPDATE actions SET {', '.join(k + '=?' for k in sets)} WHERE id=?", (*[d[k] for k in sets], aid))
+    return _one("SELECT * FROM actions WHERE id=?", (aid,))
+
+
+def list_actions(cid=None, standard=None):
+    q, a = "SELECT * FROM actions WHERE 1=1", []
+    if cid:
+        q += " AND client_id=?"; a.append(cid)
+    if standard:
+        q += " AND standard=?"; a.append(standard)
+    return _rows(q + " ORDER BY CASE status WHEN 'Ouverte' THEN 0 WHEN 'En cours' THEN 1 ELSE 2 END, due", a)
+
+
+# formations
+def add_training(cid, d):
+    return _exec("INSERT INTO trainings(client_id,standard,module,audience,duration,planned,status,document_id) VALUES (?,?,?,?,?,?,?,?)",
+                 (cid, d.get("standard"), d.get("module"), d.get("audience"), d.get("duration"), d.get("planned"), d.get("status", "Planifiée"), d.get("document_id")))
+
+
+def update_training(tid, status):
+    _exec("UPDATE trainings SET status=? WHERE id=?", (status, tid))
+
+
+def list_trainings(cid=None):
+    q = "SELECT * FROM trainings" + (" WHERE client_id=?" if cid else "") + " ORDER BY planned"
+    return _rows(q, (cid,) if cid else ())

@@ -169,3 +169,104 @@ def test_delete_client_cascade():
 def test_pwa_assets():
     for p in ("/", "/manifest.webmanifest", "/sw.js", "/static/chart.umd.js", "/static/app.js"):
         assert c.get(p).status_code == 200, p
+
+
+# ---------------------------------------------------------------- v2 : agents
+import time as _time
+from app import agents as _agents, files as _files, store as _store
+
+
+def _client_files(tmp):
+    from docx import Document as _D
+    (tmp / "Qualite").mkdir()
+    for name, txt in [("Politique qualité.docx", "Politique qualité signée par la direction"),
+                      ("Liste des documents.docx", "Liste des documents en vigueur ; procédure de maîtrise documentaire"),
+                      ("Programme audit.docx", "Programme d'audit interne et rapports d'audit")]:
+        d = _D(); d.add_paragraph(txt); d.save(tmp / "Qualite" / name)
+    (tmp / "Qualite" / "PV revue.txt").write_text("PV de revue de direction ; analyse de contexte SWOT", encoding="utf-8")
+
+
+def test_files_roots_index_search_and_permissions(tmp_path):
+    _client_files(tmp_path)
+    r = c.post("/api/files/roots", json={"path": str(tmp_path), "label": "Client", "write": False})
+    assert r.status_code == 200 and r.json()["roots"][0]["exists"]
+    assert c.post("/api/files/roots", json={"path": str(tmp_path / "absent")}).status_code == 400
+    st = c.post("/api/files/index").json()
+    assert st["fichiers"] >= 4
+    hits = c.get("/api/files/search", params={"q": "revue de direction"}).json()
+    assert any("PV revue" in h["name"] for h in hits)
+    import pytest as _pt
+    with _pt.raises(PermissionError):
+        _files.read_file("/etc/hostname")
+    assert "Politique" in _files.read_file(str(tmp_path / "Qualite" / "Politique qualité.docx"))
+    c.delete("/api/files/roots", params={"path": str(tmp_path)})
+
+
+def test_output_never_overwrites(tmp_path):
+    c.post("/api/files/roots", json={"path": str(tmp_path), "write": True})
+    p1 = _files.write_output("Client X", "ISO 9001", "Doc.docx", b"1")
+    p2 = _files.write_output("Client X", "ISO 9001", "Doc.docx", b"2")
+    assert p1 != p2 and str(tmp_path) in p1 and open(p1, "rb").read() == b"1"
+    c.delete("/api/files/roots", params={"path": str(tmp_path)})
+
+
+def _wait(rid):
+    for _ in range(200):
+        r = c.get(f"/api/runs/{rid}").json()
+        if r["status"] != "En cours":
+            return r
+        _time.sleep(0.1)
+    raise AssertionError("agent trop long")
+
+
+def test_mission_agent_end_to_end(tmp_path):
+    _client_files(tmp_path)
+    c.post("/api/files/roots", json={"path": str(tmp_path), "write": False})
+    cid = _new(standards=["ISO 9001"])
+    # une réponse humaine ne doit jamais être remplacée
+    c.put(f"/api/clients/{cid}/gap/ISO 9001", json={"answers": {"4.1": {"status": "C", "note": "Vu en entretien"}}})
+    rid = c.post(f"/api/clients/{cid}/agents/mission", json={"standard": "ISO 9001"}).json()["run_id"]
+    r = _wait(rid)
+    assert r["status"] == "Terminé", r["log"][-3:]
+    assert len(r["outputs"]["documents"]) >= 20 and r["outputs"]["readiness"]["score"] >= 0
+    gap = c.get(f"/api/clients/{cid}/gap/ISO 9001").json()["answers"]
+    assert gap["4.1"]["note"] == "Vu en entretien"
+    assert any(v["note"].startswith("[Agent]") for v in gap.values())
+    acts = c.get(f"/api/clients/{cid}/actions").json()
+    assert acts and all(a["cause"] and a["action"] for a in acts)
+    trs = c.get(f"/api/clients/{cid}/trainings").json()
+    assert len(trs) >= 4
+    assert c.put(f"/api/trainings/{trs[0]['id']}", json={"status": "Réalisée"}).status_code == 200
+    assert c.put(f"/api/actions/{acts[0]['id']}", json={"status": "Clôturée"}).json()["status"] == "Clôturée"
+    assert c.put(f"/api/actions/{acts[0]['id']}", json={"status": "Bof"}).status_code == 400
+    audits = [a for a in c.get(f"/api/clients/{cid}").json()["audits"] if a["type"] == "interne"]
+    assert audits and audits[0]["lead_auditor"].startswith("Agent")
+    d = r["outputs"]["documents"][0]
+    assert c.get(f"/api/documents/{d['id']}").json()["meta"]["status"] == "À valider"
+    assert c.post(f"/api/documents/{d['id']}/validate", json={"by": "N. Selmi"}).status_code == 200
+    assert c.get(f"/api/documents/{d['id']}").json()["meta"]["status"] == "Validé"
+    c.delete("/api/files/roots", params={"path": str(tmp_path)})
+
+
+@pytest.mark.parametrize("key", ["preuves", "qualite", "pilote", "auditeur", "formateur", "capa", "certification"])
+def test_each_agent_runs_without_folders(key):
+    cid = _new(standards=["ISO 45001"])
+    ans = {x["id"]: {"status": "P"} for x in engine.clauses("ISO 45001")}
+    c.put(f"/api/clients/{cid}/gap/ISO 45001", json={"answers": ans})
+    r = _wait(c.post(f"/api/clients/{cid}/agents/{key}", json={"standard": "ISO 45001"}).json()["run_id"])
+    assert r["status"] == "Terminé", r["log"][-3:]
+
+
+def test_precertification_is_labelled_simulation():
+    cid = _new(standards=["ISO 9001"])
+    r = _wait(c.post(f"/api/clients/{cid}/agents/certification", json={"standard": "ISO 9001"}).json()["run_id"])
+    doc = c.get(f"/api/documents/{r['outputs']['documents'][-1]['id']}").json()
+    assert "organisme certificateur accrédité" in doc["footer"]
+
+
+def test_unknown_agent_and_roots_host_only():
+    cid = _new()
+    assert c.post(f"/api/clients/{cid}/agents/zzz", json={"standard": "ISO 9001"}).status_code == 400
+    from fastapi.testclient import TestClient as _TC
+    remote = _TC(app, client=("192.168.1.50", 5000))
+    assert remote.post("/api/files/roots", json={"path": "/tmp"}).status_code == 403
