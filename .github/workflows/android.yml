@@ -1,0 +1,78 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    paths: ["mobile/android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      # Clé de signature permanente : secrets du dépôt (Settings → Secrets and variables → Actions).
+      # Sans ces secrets, l'APK est signé avec une clé de test temporaire.
+      - name: Préparer la clé de signature
+        env:
+          KS_B64: ${{ secrets.KAPSIQ_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/kapsiq.p12"
+            echo "KAPSIQ_KEYSTORE_FILE=$RUNNER_TEMP/kapsiq.p12" >> "$GITHUB_ENV"
+            echo "Signature : clé permanente SmartCell"
+          else
+            echo "Signature : clé de test temporaire"
+          fi
+
+      - name: Construire l'APK
+        working-directory: mobile/android
+        env:
+          KAPSIQ_KEYSTORE_PASSWORD: ${{ secrets.KAPSIQ_KEYSTORE_PASSWORD }}
+        run: |
+          set -o pipefail
+          gradle --no-daemon assembleRelease 2>&1 | tee /tmp/build.log
+
+      - name: Publier l'APK sur la branche android-build
+        run: |
+          APK=Kapsi-Q-1.0.0.apk
+          cp mobile/android/app/build/outputs/apk/release/app-release.apk /tmp/$APK
+          rm -f "$RUNNER_TEMP/kapsiq.p12"
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan android-build
+          git rm -rf . -q
+          cp /tmp/$APK .
+          printf "APK Kapsi-Q 1.0.0 construit depuis %s le %s\n" "$GITHUB_SHA" "$(date -u +%F)" > README.md
+          git add $APK README.md
+          git commit -q -m "APK Kapsi-Q 1.0.0 (${GITHUB_SHA::7})"
+          git push -f origin android-build
+
+      - name: Publier le journal en cas d'échec
+        if: failure()
+        run: |
+          rm -f "$RUNNER_TEMP/kapsiq.p12"
+          tail -n 300 /tmp/build.log > /tmp/build-tail.log 2>/dev/null || echo "pas de journal" > /tmp/build-tail.log
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan android-build-log
+          git rm -rf . -q
+          cp /tmp/build-tail.log build.log
+          git add build.log
+          git commit -q -m "Échec de construction APK (${GITHUB_SHA::7})"
+          git push -f origin android-build-log

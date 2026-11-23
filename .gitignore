@@ -7,3 +7,11 @@ data/*.db
 ux-results/
 kapsi.env
 sauvegardes/
+
+# Android
+mobile/android/.gradle/
+mobile/android/**/build/
+mobile/android/local.properties
+*.p12
+*.jks
+*.keystore

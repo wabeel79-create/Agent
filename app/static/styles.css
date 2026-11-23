@@ -103,3 +103,9 @@ th{background:#fde6ee!important}.score{background:var(--grad);-webkit-background
 @media (prefers-reduced-motion:reduce){.totop{transition:none}}
 @media print{.totop{display:none!important}}
 .side a.on,.side a.on:hover{background:var(--grad);color:#fff}
+
+/* Connexion d'un téléphone */
+.phone{display:flex;gap:1.2rem;align-items:flex-start;flex-wrap:wrap}
+.qr{width:180px;height:180px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px;flex:0 0 180px}
+.qr svg{width:100%;height:100%}
+.urls{display:flex;flex-direction:column;gap:.35rem;margin:.4rem 0 .6rem}.urls code{background:var(--soft);padding:.45rem .7rem;border-radius:8px;font-size:1rem;color:var(--violet);font-weight:600;word-break:break-all}

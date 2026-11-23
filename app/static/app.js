@@ -9,6 +9,7 @@ const ls = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* indisponible */ } },
 };
 let CAT = null;
+const NATIVE = window.KapsiNative || null; // présent dans l'application Android Kapsi-Q
 let charts = [];
 const stack = [];
 const GRADE_COLOR = { PF: "#1e7a4c", C: "#4fae7a", OA: "#b86e00", NCm: "#c92a45", NCM: "#7d1426", NA: "#8a96a0" };
@@ -337,10 +338,17 @@ ROUTES.doc = async (did) => {
     if (s.chart.type === "radar") radar($("#ch" + i), s.chart.data);
     else chart($("#ch" + i), { type: "bar", data: { labels: Object.keys(s.chart.data), datasets: [{ data: Object.values(s.chart.data), backgroundColor: ["#2e8b57", "#5bb381", "#d08b00", "#c0392b", "#8e1b10"], borderRadius: 6 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } });
   });
-  $("#pr").onclick = () => window.print();
+  $("#pr").onclick = () => (NATIVE ? NATIVE.print(d.title) : window.print());
   $("#dl").onclick = async () => {
-    const r = await api(`/api/documents/${did}/docx`); const url = URL.createObjectURL(await r.blob());
-    const el = Object.assign(document.createElement("a"), { href: url, download: d.title.replace(/[^\w-]+/g, "_").slice(0, 80) + ".docx" });
+    const r = await api(`/api/documents/${did}/docx`); const blob = await r.blob();
+    const name = d.title.replace(/[^\w-]+/g, "_").slice(0, 80) + ".docx";
+    if (NATIVE) { // application Android : enregistrement dans Téléchargements
+      const b64 = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.readAsDataURL(blob); });
+      NATIVE.saveFile(name, blob.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b64);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const el = Object.assign(document.createElement("a"), { href: url, download: name });
     document.body.appendChild(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
   };
 };
@@ -394,7 +402,12 @@ ROUTES.settings = async () => {
       <li>Télécharger Ollama : ollama.com (Windows, macOS, Linux)</li><li>Dans un terminal : <code>ollama pull llama3.1:8b</code> ou <code>ollama pull deepseek-r1:8b</code></li>
       <li>Choisir « Ollama » ci-dessus, modèle <code>llama3.1:8b</code>, puis Tester</li></ol></details></section>
     <section class="card"><h2>Accès</h2><label>Jeton d'accès (si exigé par le serveur)</label><input id="tok" value="${esc(ls.get("kapsi_token"))}"><p><button class="btn alt" id="stok">Enregistrer le jeton</button></p></section>
-    <section class="card"><h2>Installer sur iPhone / Android</h2><p class="sub">Safari : Partager → « Sur l'écran d'accueil ». Chrome : menu → « Installer l'application ».</p></section>`;
+    <section class="card"><h2>Connecter un téléphone</h2>
+      <div class="phone"><div id="qr" class="qr" role="img" aria-label="QR code de l'adresse de Kapsi-Q"></div>
+      <div class="grow"><p class="sub" style="margin-top:0">Scannez ce code avec l'appareil photo du téléphone, connecté au <b>même Wi-Fi</b>, ou saisissez l'adresse :</p>
+        <div id="urls" class="urls"></div>
+        <p class="sub"><b>iPhone</b> : la page s'ouvre dans Safari → Partager → « Sur l'écran d'accueil ».<br><b>Android</b> : installez l'application Kapsi-Q (fichier .apk fourni) et saisissez cette adresse au premier lancement, ou Chrome → menu ⋮ → « Installer l'application ».</p></div></div>
+      ${NATIVE ? `<p><button class="btn alt" id="chg">Changer de serveur</button></p>` : ""}</section>`;
   const cloudCheck = () => $("#cloudw").classList.toggle("hidden", !P[$("#prov").value].cloud);
   cloudCheck();
   $("#prov").onchange = () => { const p = P[$("#prov").value]; $("#url").value = p.url; $("#model").value = p.model; cloudCheck(); };
@@ -405,6 +418,13 @@ ROUTES.settings = async () => {
   };
   $("#test").onclick = (e) => busy(e.currentTarget, async () => { const r = await send("/api/settings/llm/test"); $("#res").textContent = (r.ok ? "✓ " : "✗ ") + r.message; });
   $("#stok").onclick = () => { ls.set("kapsi_token", $("#tok").value.trim()); toast("Jeton enregistré"); };
+  $("#chg")?.addEventListener("click", () => NATIVE.changeServer());
+  try {
+    const n = await get("/api/network");
+    const urls = n.urls.length ? n.urls : [location.origin];
+    $("#urls").innerHTML = urls.map((u) => `<code>${esc(u)}</code>`).join("");
+    if (window.qrcode) { const q = qrcode(0, "M"); q.addData(urls[0]); q.make(); $("#qr").innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); }
+  } catch { $("#urls").textContent = location.origin; }
 };
 
 /* ------------------------------------------------- bouton revenir en haut */

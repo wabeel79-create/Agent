@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'tn.smartcell.kapsiq'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'tn.smartcell.kapsiq'
+        minSdk 29          // Android 10 et plus
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    // Signature : la clé n'est jamais stockée dans le dépôt.
+    // Si les secrets GitHub KAPSIQ_KEYSTORE_B64 / KAPSIQ_KEYSTORE_PASSWORD sont définis, l'APK est signé avec la clé
+    // permanente SmartCell (mises à jour possibles sans désinstaller) ; sinon, avec une clé de test temporaire.
+    def ksFile = System.getenv('KAPSIQ_KEYSTORE_FILE')
+    def ksPass = System.getenv('KAPSIQ_KEYSTORE_PASSWORD')
+    signingConfigs {
+        if (ksFile && ksPass) {
+            distribution {
+                storeFile file(ksFile)
+                storeType 'pkcs12'
+                storePassword ksPass
+                keyAlias 'kapsiq'
+                keyPassword ksPass
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig (ksFile && ksPass) ? signingConfigs.distribution : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}

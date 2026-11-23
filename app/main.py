@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import re
 import secrets
+import socket
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -108,6 +109,33 @@ def _save(cid: int, doc: dict) -> dict:
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": VERSION, "ai": llm.public(), "auth": bool(TOKEN)}
+
+
+def _lan_ips() -> list[str]:
+    """Adresses IPv4 du poste sur le réseau local (pour connecter les téléphones)."""
+    ips = set()
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))  # aucun paquet envoyé : sert à choisir l'interface
+        ips.add(s.getsockname()[0]); s.close()
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ips.add(info[4][0])
+    except OSError:
+        pass
+    return sorted(i for i in ips if not i.startswith("127."))
+
+
+@app.get("/api/network", dependencies=A)
+def network(request: Request):
+    port = request.url.port or (443 if request.url.scheme == "https" else 80)
+    host = request.url.hostname or ""
+    urls = [f"http://{ip}:{port}" for ip in _lan_ips()]
+    if host not in ("localhost", "127.0.0.1") and f"{request.url.scheme}://{host}:{port}" not in urls:
+        urls.insert(0, f"{request.url.scheme}://{host}:{port}")
+    return {"urls": urls, "port": port, "hostname": socket.gethostname()}
 
 
 @app.get("/api/catalog", dependencies=A)
