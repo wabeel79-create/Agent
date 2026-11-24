@@ -407,6 +407,8 @@ def run_get(rid: int):
     r["client"] = (store.get_client(r["client_id"]) or {}).get("name")
     r["agent_name"] = agents.AGENTS.get(r["agent"], (r["agent"],))[0]
     r["n_proposals"] = len(r["outputs"].get("gap_proposals") or {})
+    if r["status"] == "Terminé" and r["outputs"].get("readiness"):
+        r["outputs"]["readiness"] = agents.readiness(r["client_id"], r["standard"])  # valeur à jour
     return r
 
 

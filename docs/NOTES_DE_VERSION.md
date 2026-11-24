@@ -7,4 +7,5 @@
 - **Actions correctives** et **formations** suivies par client ; **validation** des documents (statut, validateur, date).
 - **Indice de préparation à la certification** avec alertes.
 - Audit de type « interne » ; tableau de bord enrichi (documents à valider, actions ouvertes).
+- **Démo : 28 entreprises** (14 nouvelles : pharmacie, cimenterie, laiterie, aéronautique, BTP, eau minérale, port, université, cartonnerie, centre d'appels, photovoltaïque, tannerie, minoterie, assurance), avec le travail des agents déjà effectué (documents produits et en partie validés, actions, formations, indice de préparation de 23 à 77/100). Chargement : `charger_demo.bat`.
 - Nouvelle dépendance : `pypdf`. Base de données migrée automatiquement.
