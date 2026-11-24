@@ -116,3 +116,24 @@ th{background:#fde6ee!important}.score{background:var(--grad);-webkit-background
 .runlog div{padding:.12rem 0;white-space:pre-wrap}.runlog span{color:#9a8496;margin-right:.4rem}
 .runlog .l-step{color:#ff8fc8;font-weight:700;margin-top:.4rem}.runlog .l-ok{color:#8ff0b8}.runlog .l-warn{color:#ffd27a}.runlog .l-error{color:#ff8a8a}.runlog .l-doc{color:#cbb6ff}
 td textarea,td input,td select{font-size:.85rem;padding:.4rem;min-width:120px}
+
+/* Arbre des agents */
+.treecard{background:radial-gradient(120% 90% at 50% 0%,#3a1450 0%,#1f1024 60%,#160a1b 100%);color:#f6e8f1;border:1px solid #4a2a5a}
+.treecard h2{color:#fff}.treecard .sub{color:#d9bfd0}.treecard .sub b{color:#fff}
+.treewrap{overflow-x:auto;margin:.6rem -.4rem 0}.tree{width:100%;min-width:640px;height:auto;display:block}
+.tree .edge{fill:none;stroke:#4a3550;stroke-width:3;stroke-dasharray:6 6}.tree .edge.lit{stroke:#ff5fa8;stroke-dasharray:none;filter:drop-shadow(0 0 4px #ff5fa8)}
+.tree .node{cursor:pointer;outline:none}.tree .nb{fill:#2a1733;stroke:#4a3550;stroke-width:2}
+.tree .ni{font-size:22px;fill:#9a8496}.tree .nn{font:700 15px Inter,system-ui,sans-serif;fill:#e9dbe4}.tree .ns{font:600 12px Inter,system-ui,sans-serif;fill:#9a8496}.tree .np{font:700 12px Inter,system-ui,sans-serif;fill:#cbb6c4}
+.tree .pb{fill:#3b2644}.tree .pf{fill:#9a8496}
+.tree .s-disponible .nb{stroke:#ff5fa8;stroke-width:2.5;animation:tpulse 1.8s ease-in-out infinite}.tree .s-disponible .ni,.tree .s-disponible .ns{fill:#ff8fc8}
+.tree .s-acquis .nb,.tree .s-maitrise .nb{fill:#7b2ff7;stroke:#e8327f;stroke-width:2.5}.tree .s-acquis .nb{fill:#6a2ad0}
+.tree .s-maitrise .nb{fill:#c2185b;stroke:#ffcc4d;stroke-width:3;filter:drop-shadow(0 0 8px rgba(255,204,77,.45))}
+.tree .s-acquis text,.tree .s-maitrise text{fill:#fff}.tree .s-acquis .pf,.tree .s-maitrise .pf{fill:#ffcc4d}.tree .s-acquis .pb,.tree .s-maitrise .pb{fill:rgba(255,255,255,.25)}
+.tree .human .nb{stroke-dasharray:8 5}.tree .s-pret .nb{fill:#ffcc4d;stroke:#fff}.tree .s-pret text{fill:#2a0c36}
+.tree .node.sel .nb,.tree .node:focus-visible .nb{stroke:#fff;stroke-width:4}
+@keyframes tpulse{0%,100%{stroke-opacity:1}50%{stroke-opacity:.35}}
+@media (prefers-reduced-motion:reduce){.tree .s-disponible .nb{animation:none}}
+.legend{margin-top:.4rem;display:flex;flex-wrap:wrap;gap:.35rem .8rem;align-items:center}.legend .lg{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:middle;margin-right:.25rem;border:2px solid #4a3550;background:#2a1733}
+.legend .lg.s-disponible{border-color:#ff5fa8}.legend .lg.s-acquis{background:#6a2ad0;border-color:#e8327f}.legend .lg.s-maitrise{background:#c2185b;border-color:#ffcc4d}
+.tdet{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-top:.8rem;padding:.8rem 1rem;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid #4a2a5a}
+.tdet .sub{margin-top:.2rem}

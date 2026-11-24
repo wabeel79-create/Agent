@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carte ISO gratuite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: confident consultant, short sentences, honest about limits.
+   IDEA: a route map to certification, each answer lights one milestone.
+   PICTURE: winding route with 6 milestones and a certification flag, drawn live.
+   COLOUR and TYPE: Kapsi-Q brand, deep plum ground, pink lead, violet support, gold for "done"; Inter.
+   LAYOUT: question card left, route right; result replaces the card, route stays lit. */
+:root{color-scheme:dark;--bg:#1a0b20;--bg2:#24102c;--card:#2c1535;--line:#4a2a5a;--ink:#f7ecf3;--mute:#cdb3c4;--pink:#e8327f;--pink2:#ff6fae;--vio:#7b2ff7;--gold:#ffcc4d}
+:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+a{color:var(--pink2)}
+.band{padding:clamp(24px,4vw,56px) max(5vw,16px)}
+.top{display:flex;align-items:center;gap:12px;padding:16px max(5vw,16px);border-bottom:1px solid var(--line);background:var(--bg2)}
+.logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,var(--pink),var(--vio));font:800 24px/1 Inter;color:#fff}
+.top b{font-size:17px}.top small{display:block;color:var(--mute);font-size:13px}
+.hero{background:radial-gradient(90% 120% at 85% 0%,#4a1660 0%,var(--bg) 62%)}
+.wrap{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(20px,4vw,56px);align-items:start}
+h1{font-size:clamp(32px,4.6vw,50px);line-height:1.05;margin:0 0 12px;text-wrap:balance}
+.lede{color:var(--mute);max-width:56ch;margin:0 0 22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:clamp(18px,3vw,28px)}
+.step{color:var(--pink2);font-weight:700;font-size:14px}
+.q{font-size:22px;font-weight:700;margin:6px 0 4px;line-height:1.25}
+.hint{color:var(--mute);font-size:14px;margin:0 0 14px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.opt{display:flex;align-items:center;gap:10px;min-height:52px;padding:10px 14px;border-radius:12px;border:2px solid var(--line);background:#24102c;color:var(--ink);font:500 16px Inter,sans-serif;text-align:left;cursor:pointer}
+.opt:hover{border-color:var(--pink)}.opt[aria-pressed=true],.opt[aria-checked=true]{border-color:var(--pink);background:#3a1440}
+.opt .bx{flex:none;width:20px;height:20px;border-radius:6px;border:2px solid var(--mute);display:grid;place-items:center;font-size:13px}
+.opt[aria-checked=true] .bx{background:var(--pink);border-color:var(--pink)}
+.nav{display:flex;gap:10px;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
+.btn{min-height:46px;padding:0 20px;border-radius:999px;border:0;font:700 16px Inter,sans-serif;cursor:pointer;background:linear-gradient(90deg,var(--pink),var(--vio));color:#fff;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+.btn.ghost{background:transparent;border:2px solid var(--line);color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.fig{position:relative;aspect-ratio:13/11}.fig svg{position:absolute;inset:0;width:100%;height:100%}
+.route{fill:none;stroke:#4a2a5a;stroke-width:8;stroke-linecap:round;stroke-dasharray:2 16}
+.route.lit{stroke:var(--pink);stroke-dasharray:none;filter:drop-shadow(0 0 6px rgba(232,50,127,.7))}
+.ms circle{fill:#2c1535;stroke:#6b4a7a;stroke-width:3}.ms.on circle{fill:var(--pink);stroke:#fff}.ms.cur circle{stroke:var(--gold);stroke-width:5}
+.ms text{font:600 15px Inter,sans-serif;fill:var(--mute)}.ms.on text{fill:#fff}.ms .n{font:800 14px Inter;fill:#fff;text-anchor:middle}
+.flag path{fill:#3a2244}.flag.on path{fill:var(--gold)}
+@media(prefers-reduced-motion:no-preference){.route.lit{transition:stroke .4s}}
+.res{display:grid;gap:16px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi{background:#24102c;border:1px solid var(--line);border-radius:14px;padding:14px}
+.kpi b{display:block;font-size:clamp(26px,3.4vw,36px);line-height:1.1}.kpi span{color:var(--mute);font-size:14px}
+.kpi.main b{color:var(--gold)}
+.phases{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.phases li{display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:10px;background:#24102c;border:1px solid var(--line)}
+.phases li .d{flex:none;width:12px;height:12px;border-radius:50%;background:#6b4a7a}
+.phases li.ok .d{background:var(--gold)}.phases li.next{border-color:var(--pink)}.phases li.next .d{background:var(--pink)}
+.phases li em{margin-left:auto;font-style:normal;font-size:13px;color:var(--mute);white-space:nowrap}
+.phases li.next em{color:var(--pink2);font-weight:700}
+h2{font-size:20px;margin:0 0 10px}
+.agents{display:grid;gap:10px}
+.agent{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;padding:14px;border-radius:14px;background:#24102c;border:1px solid var(--line)}
+.agent .num{grid-row:span 3;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--pink),var(--vio));font-weight:800}
+.agent small{color:var(--mute)}
+.note{border-left:4px solid var(--gold);padding:10px 14px;background:#2a1a24;border-radius:0 10px 10px 0;color:var(--ink);font-size:15px}
+.cta{background:linear-gradient(120deg,#3a1440,#2a1050);border:1px solid var(--pink);border-radius:18px;padding:20px}
+.cta p{margin:6px 0 14px;color:var(--mute)}.cta .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.small{font-size:13px;color:var(--mute)}
+.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1240px;margin:0 auto}
+.how div{border-top:3px solid var(--pink);padding-top:12px}.how b{display:block;font-size:17px;margin-bottom:4px}.how p{margin:0;color:var(--mute)}
+footer{border-top:1px solid var(--line);color:var(--mute);font-size:14px}
+footer .in{max-width:1240px;margin:0 auto;display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
+@media(max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}.fig{max-width:420px;width:100%;margin:0 auto}}
+@media(max-width:600px){.kpis,.how{grid-template-columns:minmax(0,1fr)}.opts{grid-template-columns:minmax(0,1fr)}.q{font-size:20px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="logo" aria-hidden="true">Ψ</div><div><b>Kapsi-Q</b><small>Plateforme ISO · SmartCell Technologies, La Soukra</small></div></header>
+
+<section class="band hero">
+  <div class="wrap">
+    <div>
+      <h1>Votre carte ISO gratuite en 2 minutes</h1>
+      <p class="lede">Six questions sur votre entreprise. Vous obtenez votre point de départ, une durée de mise en place indicative, les étapes qui restent jusqu'au certificat et les premiers agents Kapsi-Q à lancer.</p>
+      <div class="card" id="app" aria-live="polite"></div>
+    </div>
+    <div class="fig" aria-hidden="true"><svg id="map" viewBox="0 0 520 440"></svg></div>
+  </div>
+</section>
+
+<section class="band" style="padding-top:0">
+  <div class="how">
+    <div><b>1. Répondez</b><p>Norme visée, secteur, effectif, situation actuelle, documents existants, échéance.</p></div>
+    <div><b>2. Lisez votre carte</b><p>Point de départ, étapes restantes et ordre conseillé des agents qui préparent le travail.</p></div>
+    <div><b>3. Échangez avec nous</b><p>Envoyez votre carte par WhatsApp pour un diagnostic complet avec un consultant.</p></div>
+  </div>
+</section>
+
+<footer class="band"><div class="in"><span>Kapsi-Q prépare votre système de management. Le certificat est délivré uniquement par un organisme certificateur accrédité (ISO/IEC 17021-1).</span><span>SmartCell Technologies · smartcell.opencore@gmail.com · +216 92 548 044</span></div></footer>
+
+<script>
+{
+const WA = "21692548044", MAIL = "smartcell.opencore@gmail.com";
+const Q = [
+  { id: "std", label: "Norme", t: "Quelle norme visez-vous ?", hint: "Choisissez la norme principale.", type: "one", opts: [
+    ["9001", "ISO 9001 · Qualité"], ["14001", "ISO 14001 · Environnement"], ["45001", "ISO 45001 · Santé et sécurité"], ["22000", "ISO 22000 · Sécurité des aliments"],
+    ["27001", "ISO 27001 · Sécurité de l'information"], ["50001", "ISO 50001 · Énergie"], ["21001", "ISO 21001 · Éducation"], ["42001", "ISO 42001 · Intelligence artificielle"], ["qse", "Système intégré QSE (9001, 14001, 45001)"]] },
+  { id: "sec", label: "Secteur", t: "Dans quel secteur travaillez-vous ?", hint: "", type: "one", opts: [
+    ["ind", "Industrie"], ["agro", "Agroalimentaire"], ["it", "Services et informatique"], ["sante", "Santé"], ["btp", "BTP"], ["edu", "Éducation et formation"], ["log", "Transport et logistique"], ["autre", "Autre"]] },
+  { id: "size", label: "Effectif", t: "Combien de personnes travaillent dans l'organisme ?", hint: "Sur le périmètre à certifier.", type: "one", opts: [
+    ["a", "1 à 10"], ["b", "11 à 50"], ["c", "51 à 250"], ["d", "Plus de 250"]] },
+  { id: "sit", label: "Situation", t: "Où en êtes-vous aujourd'hui ?", hint: "", type: "one", opts: [
+    ["rien", "Rien de formalisé"], ["quelques", "Quelques procédures écrites"], ["systeme", "Un système en place, pas encore certifié"], ["certifie", "Déjà certifié sur une autre norme ou version"]] },
+  { id: "docs", label: "Documents", t: "Qu'avez-vous déjà ?", hint: "Cochez tout ce qui existe et est à jour. Aucun, c'est possible aussi.", type: "multi", opts: [
+    ["politique", "Politique signée par la direction"], ["carto", "Cartographie des processus"], ["risques", "Registre des risques"], ["proc", "Procédures et instructions"],
+    ["formation", "Plan de formation"], ["audit", "Audit interne réalisé"], ["revue", "Revue de direction tenue"]] },
+  { id: "dead", label: "Échéance", t: "Pour quand voulez-vous le certificat ?", hint: "", type: "one", opts: [
+    ["3", "Dans 3 mois"], ["6", "Dans 6 mois"], ["12", "Dans 12 mois"], ["0", "Pas de date fixée"]] },
+];
+const PTS = [[70, 400], [220, 372], [370, 400], [460, 296], [330, 246], [170, 232], [300, 120], [440, 62]];
+const SPEC = {
+  "9001": "Pour ISO 9001, l'auditeur regarde en priorité la satisfaction des clients, la maîtrise des processus et la revue de direction.",
+  "14001": "Pour ISO 14001, le document central est l'analyse des aspects et impacts environnementaux, avec la veille réglementaire.",
+  "45001": "Pour ISO 45001, partez de l'évaluation des risques professionnels (document unique) et de la consultation des travailleurs.",
+  "22000": "Pour ISO 22000, le plan HACCP et les programmes prérequis sont le cœur du système.",
+  "27001": "Pour ISO 27001, l'appréciation des risques et la déclaration d'applicabilité des 93 mesures sont indispensables.",
+  "50001": "Pour ISO 50001, tout part de la revue énergétique, des usages énergétiques significatifs et des indicateurs de performance.",
+  "21001": "Pour ISO 21001, l'auditeur regarde les besoins des apprenants, la conception des programmes et l'évaluation.",
+  "42001": "Pour ISO 42001, il faut un inventaire des systèmes d'IA et une évaluation de leur impact.",
+  "qse": "Un système intégré partage la politique, la revue de direction, l'audit interne et la maîtrise documentaire entre les trois normes.",
+};
+const SECT = { agro: ["22000", "Dans l'agroalimentaire, ISO 22000 est souvent la norme demandée par les clients."], it: ["27001", "Dans les services informatiques, ISO 27001 est souvent exigée par les donneurs d'ordre."], sante: ["45001", "Dans la santé, ISO 45001 complète utilement la qualité."], btp: ["45001", "Dans le BTP, la sécurité des chantiers (ISO 45001) est souvent décisive dans les appels d'offres."] };
+const PHASES = [["Diagnostic des écarts", []], ["Contexte et risques", ["risques"]], ["Politique et processus", ["politique", "carto"]], ["Procédures et enregistrements", ["proc"]],
+  ["Formation et sensibilisation", ["formation"]], ["Audit interne", ["audit"]], ["Revue de direction", ["revue"]], ["Actions correctives", ["audit"]], ["Audit à blanc", []], ["Certification par un organisme accrédité", []]];
+const AG = {
+  preuves: ["Analyste des preuves", "Vos dossiers et votre Drive", "La carte des preuves, exigence par exigence, et les cotations proposées"],
+  qualite: ["Responsable qualité", "Le diagnostic et vos documents existants", "Politique, cartographie, registres, objectifs et procédures, prêts à valider"],
+  formateur: ["Formateur", "Les rôles et les exigences de la norme", "Plan de formation, supports, quiz et feuilles d'émargement"],
+  auditeur: ["Auditeur interne", "Les preuves et les documents validés", "Programme, grille cotée, rapport et non-conformités"],
+  pilote: ["Pilote du système", "Tout l'avancement", "Indice de préparation, alertes et ordre du jour de la revue de direction"],
+  certification: ["Pré-certification", "Le système complet", "Une simulation des étapes 1 et 2 de l'audit et les points bloquants"],
+};
+let A = { docs: [] }, i = 0;
+try { const s = JSON.parse(localStorage.getItem("carteiso") || "null"); if (s && s.a) { A = s.a; i = s.i || 0; } } catch (e) {}
+const save = () => { try { localStorage.setItem("carteiso", JSON.stringify({ a: A, i })); } catch (e) {} };
+const $ = (q) => document.querySelector(q);
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const lab = (qid, v) => (Q.find((q) => q.id === qid).opts.find((o) => o[0] === v) || [, ""])[1];
+
+function seg(a, b) { const mx = (a[0] + b[0]) / 2; return `M${a[0]},${a[1]} C${mx},${a[1]} ${mx},${b[1]} ${b[0]},${b[1]}`; }
+function drawMap(done, cur) {
+  let h = "";
+  for (let k = 0; k < PTS.length - 1; k++) h += `<path d="${seg(PTS[k], PTS[k + 1])}" class="route ${k < done ? "lit" : ""}"/>`;
+  PTS.slice(0, 6).forEach((p, k) => {
+    const on = k < done;
+    h += `<g class="ms ${on ? "on" : ""} ${k === cur ? "cur" : ""}"><circle cx="${p[0]}" cy="${p[1]}" r="17"/><text class="n" x="${p[0]}" y="${p[1] + 5}">${k + 1}</text>
+      <text x="${p[0]}" y="${p[1] - 28}" text-anchor="middle">${esc(Q[k].label)}</text></g>`;
+  });
+  const f = PTS[7], fon = done >= 6;
+  h += `<g class="flag ${fon ? "on" : ""}"><line x1="${f[0]}" y1="${f[1] + 26}" x2="${f[0]}" y2="${f[1] - 30}" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M${f[0]},${f[1] - 30} l46,13 l-46,13 z"/><text x="${f[0] - 14}" y="${f[1] + 50}" text-anchor="middle" style="font:700 15px Inter;fill:${fon ? "#ffcc4d" : "#cdb3c4"}">Certification</text></g>`;
+  $("#map").innerHTML = h;
+}
+
+function ask() {
+  const q = Q[i], v = A[q.id];
+  const multi = q.type === "multi";
+  $("#app").innerHTML = `<div class="step">Question ${i + 1} sur ${Q.length}</div><div class="q" id="qt">${esc(q.t)}</div>${q.hint ? `<p class="hint">${esc(q.hint)}</p>` : `<p class="hint"></p>`}
+    <div class="opts" role="${multi ? "group" : "radiogroup"}" aria-labelledby="qt">${q.opts.map(([k, t]) => multi
+      ? `<button class="opt" role="checkbox" aria-checked="${A.docs.includes(k)}" data-k="${k}"><span class="bx" aria-hidden="true">${A.docs.includes(k) ? "✓" : ""}</span>${esc(t)}</button>`
+      : `<button class="opt" aria-pressed="${v === k}" data-k="${k}">${esc(t)}</button>`).join("")}</div>
+    <div class="nav"><button class="btn ghost" id="back" ${i ? "" : "disabled"}>Retour</button>${multi ? `<button class="btn" id="next">${A.docs.length ? "Continuer" : "Je n'ai aucun de ces documents"}</button>` : ""}</div>`;
+  document.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.k;
+    if (multi) { A.docs = A.docs.includes(k) ? A.docs.filter((x) => x !== k) : [...A.docs, k]; save(); ask(); $(`.opt[data-k="${k}"]`).focus(); return; }
+    A[q.id] = k; i++; save(); go();
+  }));
+  $("#back").addEventListener("click", () => { i = Math.max(0, i - 1); save(); go(); });
+  if (multi) $("#next").addEventListener("click", () => { i++; save(); go(); });
+  drawMap(i, i);
+}
+
+function result() {
+  const has = (d) => A.docs.includes(d);
+  const score = Math.min(90, { rien: 10, quelques: 25, systeme: 50, certifie: 65 }[A.sit] + 5 * A.docs.length);
+  let months = { rien: 10, quelques: 8, systeme: 5, certifie: 4 }[A.sit] * { a: 0.7, b: 1, c: 1.2, d: 1.4 }[A.size] * (A.std === "qse" ? 1.35 : 1);
+  months = Math.max(2, Math.round(months));
+  const dl = +A.dead;
+  const verdict = !dl ? "Fixez une date : un objectif daté aide à mobiliser l'équipe." : months <= dl ? "Échéance réaliste si vous démarrez maintenant." : months <= dl * 1.3 ? "Échéance serrée : à démarrer tout de suite." : "Échéance très serrée : réduisez le périmètre ou décalez la date.";
+  const ph = PHASES.map(([n, d], k) => {
+    const ok = k > 0 && d.length > 0 && d.every(has);
+    const cls = k === 0 ? "next" : ok ? "ok" : "";
+    return `<li class="${cls}"><span class="d" aria-hidden="true"></span>${esc(n)}<em>${ok ? "En place" : cls === "next" ? "Prochaine étape" : k === 9 ? "Organisme accrédité" : "À faire"}</em></li>`;
+  }).join("");
+  const order = [];
+  order.push(A.docs.length >= 2 ? "preuves" : "qualite");
+  order.push(A.docs.length >= 2 ? "qualite" : "preuves");
+  if (!has("formation")) order.push("formateur");
+  if (!has("audit")) order.push("auditeur");
+  if (!has("revue")) order.push("pilote");
+  if (has("audit") && has("revue") && has("formation")) order.push("certification");
+  const first = order.slice(0, 3);
+  const sect = SECT[A.sec] && SECT[A.sec][0] !== A.std && !(A.std === "qse" && SECT[A.sec][0] === "45001") ? SECT[A.sec][1] : "";
+  const sum = `Bonjour SmartCell, voici ma carte ISO Kapsi-Q :\n- Norme : ${lab("std", A.std)}\n- Secteur : ${lab("sec", A.sec)}\n- Effectif : ${lab("size", A.size)}\n- Situation : ${lab("sit", A.sit)}\n- Documents : ${A.docs.length ? A.docs.map((d) => lab("docs", d)).join(", ") : "aucun"}\n- Échéance : ${lab("dead", A.dead)}\n- Point de départ estimé : ${score}/100, mise en place d'environ ${months} mois.\nJe souhaite un diagnostic complet.`;
+  $("#app").innerHTML = `<div class="res">
+    <div><div class="step">Votre carte ISO · ${esc(lab("std", A.std))}</div><div class="q">${esc(verdict)}</div></div>
+    <div class="kpis"><div class="kpi main"><b>${score}<small style="font-size:16px">/100</small></b><span>Point de départ estimé</span></div>
+      <div class="kpi"><b>≈ ${months} mois</b><span>Mise en place, indicatif</span></div>
+      <div class="kpi"><b>${A.docs.length}/7</b><span>Documents clés en place</span></div></div>
+    <div><h2>Votre route jusqu'au certificat</h2><ol class="phases">${ph}</ol></div>
+    <div><h2>Les agents Kapsi-Q à lancer en premier</h2><div class="agents">${first.map((k, n) => `<div class="agent"><span class="num">${n + 1}</span><b>${esc(AG[k][0])}</b><small>Lit : ${esc(AG[k][1])}</small><small>Rend : ${esc(AG[k][2])}</small></div>`).join("")}</div>
+      <p class="small">Chaque document produit par un agent est relu et validé par un consultant avant diffusion.</p></div>
+    <div class="note">${esc(SPEC[A.std])}${sect ? " " + esc(sect) : ""}</div>
+    <div class="cta"><b style="font-size:18px">Recevoir votre diagnostic complet</b><p>Envoyez votre carte à SmartCell : un consultant vous recontacte pour un diagnostic exigence par exigence.</p>
+      <div class="row"><a class="btn" id="wa" href="https://wa.me/${WA}?text=${encodeURIComponent(sum)}" target="_blank" rel="noopener">Envoyer sur WhatsApp</a><button class="btn ghost" id="copy">Copier ma carte</button><span class="small" id="cpmsg" role="status"></span></div>
+      <p class="small" style="margin:10px 0 0">Ou par e-mail : ${MAIL} · +216 92 548 044</p></div>
+    <p class="small">Estimations indicatives calculées à partir de vos réponses, sans visite ni lecture de vos documents. Le certificat est délivré uniquement par un organisme certificateur accrédité. <button class="btn ghost" id="again" style="min-height:36px;padding:0 14px;font-size:14px;margin-left:6px">Recommencer</button></p></div>`;
+  $("#copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText(sum); $("#cpmsg").textContent = "Carte copiée."; } catch (e) { $("#cpmsg").textContent = "Copie impossible ici : utilisez WhatsApp."; } });
+  $("#again").addEventListener("click", () => { A = { docs: [] }; i = 0; save(); go(); });
+  drawMap(6, -1);
+}
+
+function go() { if (i >= Q.length) result(); else ask(); }
+go();
+}
+</script>
+</body>
+</html>

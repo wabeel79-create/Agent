@@ -375,6 +375,65 @@ AGENTS = {
 }
 
 
+# --------------------------------------------------------------- arbre des agents
+# (clé, prérequis, niveau, x) ; « organisme » est un nœud humain : seul un organisme accrédité certifie.
+TREE = [
+    ("preuves", [], 0, 285), ("qualite", [], 0, 715),
+    ("pilote", ["preuves"], 1, 120), ("auditeur", ["preuves", "qualite"], 1, 500), ("formateur", ["qualite"], 1, 880),
+    ("capa", ["auditeur"], 2, 500),
+    ("certification", ["capa", "formateur", "pilote"], 3, 500),
+    ("organisme", ["certification"], 4, 500),
+]
+MISSION_COVERS = {"preuves", "qualite", "formateur", "auditeur", "capa", "pilote"}
+
+
+def tree(cid: int, std: str) -> dict:
+    """État de chaque compétence de l'arbre pour un client et une norme : verrouillé, disponible, acquis, maîtrisé."""
+    k = readiness(cid, std)
+    runs = [r for r in store.list_runs(cid, 500) if r["standard"] == std and r["status"] == "Terminé"]
+    ran = {r["agent"] for r in runs}
+    if "mission" in ran:
+        ran |= MISSION_COVERS
+    gap = store.get_gap(cid, std)
+    ncl = len(engine.clauses(std)) or 1
+    answered = round(100 * sum(1 for v in gap.values() if v.get("status")) / ncl)
+    audits = [a for a in store.list_audits(cid) if std in a["standards"]]
+    internal = [a for a in audits if a["type"] == "interne"]
+    blanc = [a for a in audits if a["type"] == "blanc"]
+    docs = [d for d in store.list_documents(cid) if (d["standard"] or "").startswith(std)]
+    acts = store.list_actions(cid, std)
+    trs = [t for t in store.list_trainings(cid) if t["standard"] == std]
+    conf = lambda lst: (engine.audit_stats(lst[0]).get("conformity") or 0) if lst else 0
+    info = {
+        "preuves": (answered, f"Diagnostic renseigné à {answered} % · conformité {k['gap'] if k['gap'] is not None else 0} %", bool(gap)),
+        "qualite": (k["validated"], f"{len(docs)} document(s) · {k['validated']} % validés", bool(docs)),
+        "pilote": (k["score"], f"Indice de préparation {k['score']}/100", False),
+        "auditeur": (conf(internal), f"{len(internal)} audit(s) interne(s) · conformité {conf(internal)} %" if internal else "Aucun audit interne", bool(internal)),
+        "formateur": (k["trained"] if trs else 0, f"{sum(t['status'] == 'Réalisée' for t in trs)}/{len(trs)} formation(s) réalisée(s)", bool(trs)),
+        "capa": (k["closed"] if acts else 0, f"{sum(a['status'] == 'Clôturée' for a in acts)}/{len(acts)} action(s) clôturée(s) · {k['overdue']} en retard", bool(acts)),
+        "certification": (conf(blanc), f"Audit à blanc : conformité {conf(blanc)} %" if blanc else "Pas encore d'audit à blanc", bool(blanc)),
+        "organisme": (k["score"], "Audit de certification par un organisme accrédité (ISO/IEC 17021-1)", False),
+    }
+    nodes, state = [], {}
+    for key, req, lvl, x in TREE:
+        prog, detail, evidence = info[key]
+        done = key in ran or evidence
+        if key == "organisme":
+            st = "pret" if k["score"] >= 85 and all(state.get(r) in ("acquis", "maitrise") for r in req) else "verrouille"
+        elif done:
+            st = "maitrise" if prog >= 80 else "acquis"
+        elif all(state.get(r) in ("acquis", "maitrise") for r in req):
+            st = "disponible"
+        else:
+            st = "verrouille"
+        state[key] = st
+        name, desc = (AGENTS[key][0], AGENTS[key][1]) if key in AGENTS else ("Certification", "Décision prise par un organisme certificateur accrédité, jamais par Kapsi-Q.")
+        nodes.append({"key": key, "name": name, "desc": desc, "requires": req, "level": lvl, "x": x, "state": st,
+                      "progress": max(0, min(100, prog or 0)), "detail": detail, "human": key == "organisme", "launchable": key in AGENTS})
+    return {"standard": std, "readiness": k, "nodes": nodes,
+            "acquired": sum(1 for v in state.values() if v in ("acquis", "maitrise")), "total": len(TREE) - 1}
+
+
 def run_sync(cid: int, agent: str, std: str) -> int:
     rid = store.create_run(cid, agent, std)
     _execute(rid, cid, agent, std)

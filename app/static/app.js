@@ -339,14 +339,60 @@ async function agentsPanel(el, c, std) {
   const stds = c.projects.map((p) => p.standard);
   std = std || stds[0] || "ISO 9001";
   const runs = await get(`/api/clients/${c.id}/runs`);
-  el.innerHTML = `<section class="card"><div class="row"><h2 class="grow" style="margin:0">Équipe d'agents</h2>
+  el.innerHTML = `<section class="card treecard" id="treebox"><div class="empty">Chargement de l'arbre…</div></section>
+    <section class="card"><div class="row"><h2 class="grow" style="margin:0">Équipe d'agents</h2>
       <label class="sub" for="astd" style="margin:0">Norme</label><select id="astd" style="max-width:180px">${(stds.length ? stds : CAT.standards.map((s) => s.code)).map((s) => `<option ${s === std ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></div>
       <p class="sub">Les agents travaillent sur les dossiers autorisés (Réglages → Documents et Drive) et sur le diagnostic. Tout ce qu'ils produisent est à valider par une personne compétente.</p>
       <div class="grid">${AGENTS.map((a) => `<div class="tile agent ${a.key === "mission" ? "lead" : ""}"><b>${esc(a.name)}</b><small>${esc(a.desc)}</small><button class="btn sm" data-run="${a.key}" style="margin-top:.6rem">Lancer</button></div>`).join("")}</div></section>
     <section class="card"><h2>Exécutions</h2>${runs.length ? `<ul class="list">${runs.map((r) => `<li data-run-id="${r.id}" class="clickable" tabindex="0"><div><b>${esc(r.agent_name)}</b> · ${chip(r.standard)}<div class="sub">${esc(r.created_at)}</div></div>${runPill(r.status)}</li>`).join("")}</ul>` : `<p class="sub">Aucune exécution.</p>`}</section>`;
   $("#astd").onchange = () => agentsPanel(el, c, $("#astd").value);
+  drawTree($("#treebox", el), c, std);
   $$("[data-run]", el).forEach((b) => (b.onclick = async () => { const r = await send(`/api/clients/${c.id}/agents/${b.dataset.run}`, { standard: $("#astd").value }); nav("run", r.run_id); }));
   $$("[data-run-id]", el).forEach((l) => (l.onclick = () => nav("run", +l.dataset.runId)));
+}
+
+const TREE_ICON = { preuves: "⌕", qualite: "▤", pilote: "◎", auditeur: "✓", formateur: "☰", capa: "↻", certification: "◇", organisme: "★" };
+const TREE_STATE = { verrouille: "Verrouillé", disponible: "Disponible", acquis: "Acquis", maitrise: "Maîtrisé", pret: "Prêt à demander" };
+
+async function drawTree(box, c, std, sel) {
+  const t = await get(`/api/clients/${c.id}/tree/${encodeURIComponent(std)}`);
+  const Y = (l) => 560 - l * 125, W = 210, H = 94;
+  const by = Object.fromEntries(t.nodes.map((n) => [n.key, n]));
+  const on = (n) => n.state === "acquis" || n.state === "maitrise";
+  const edges = t.nodes.flatMap((n) => n.requires.map((r) => {
+    const a = by[r], x1 = a.x, y1 = Y(a.level) - H / 2, x2 = n.x, y2 = Y(n.level) + H / 2, my = (y1 + y2) / 2;
+    return `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" class="edge ${on(a) ? "lit" : ""}"/>`;
+  })).join("");
+  const nodes = t.nodes.map((n) => {
+    const x = n.x - W / 2, y = Y(n.level) - H / 2, p = Math.round(n.progress);
+    return `<g class="node s-${n.state} ${n.human ? "human" : ""} ${sel === n.key ? "sel" : ""}" data-k="${n.key}" role="button" tabindex="0" aria-label="${esc(n.name)} : ${TREE_STATE[n.state]}, ${esc(n.detail)}">
+      <rect x="${x}" y="${y}" width="${W}" height="${H}" rx="16" class="nb"/>
+      <text x="${x + 18}" y="${y + 32}" class="ni">${n.state === "verrouille" ? "🔒︎" : TREE_ICON[n.key]}</text>
+      <text x="${x + 46}" y="${y + 31}" class="nn">${esc(n.name)}</text>
+      <text x="${x + 18}" y="${y + 56}" class="ns">${TREE_STATE[n.state]}${n.state === "maitrise" ? " ★" : ""}</text>
+      <rect x="${x + 18}" y="${y + 68}" width="${W - 36}" height="7" rx="3.5" class="pb"/><rect x="${x + 18}" y="${y + 68}" width="${(W - 36) * p / 100}" height="7" rx="3.5" class="pf"/>
+      <text x="${x + W - 18}" y="${y + 56}" class="np" text-anchor="end">${p} %</text></g>`;
+  }).join("");
+  const k = t.readiness;
+  box.innerHTML = `<div class="row"><div class="grow"><h2 style="margin:0">Arbre des agents · ${esc(c.name)}</h2><div class="sub">${chip(std)} ${t.acquired}/${t.total} compétences acquises · indice de préparation <b>${k.score}/100</b> — ${esc(k.verdict)}</div></div>
+      <button class="btn" id="tmission">▶ Lancer le Chef de mission</button></div>
+    <div class="treewrap"><svg viewBox="0 -10 1000 640" class="tree" role="group" aria-label="Arbre des compétences des agents">${edges}${nodes}</svg></div>
+    <div class="legend sub"><span class="lg s-verrouille"></span>Verrouillé <span class="lg s-disponible"></span>Disponible <span class="lg s-acquis"></span>Acquis <span class="lg s-maitrise"></span>Maîtrisé (≥ 80 %) · cliquez sur une compétence</div>
+    <div id="tdetail"></div>`;
+  const show = (key) => {
+    const n = by[key];
+    $$(".node", box).forEach((g) => g.classList.toggle("sel", g.dataset.k === key));
+    const missing = n.requires.filter((r) => !on(by[r])).map((r) => by[r].name);
+    $("#tdetail", box).innerHTML = `<div class="tdet"><div class="grow"><b>${TREE_ICON[n.key]} ${esc(n.name)}</b> · ${TREE_STATE[n.state]}<div class="sub">${esc(n.desc)}</div><div class="sub"><b>${esc(n.detail)}</b></div>
+      ${n.state === "verrouille" && missing.length ? `<div class="sub">À débloquer d'abord : ${missing.map(esc).join(", ")}.</div>` : ""}
+      ${n.human ? `<div class="sub">Kapsi-Q prépare l'organisme ; la certification est décidée uniquement par un organisme accrédité. Seuil conseillé : indice ≥ 85/100.</div>` : ""}</div>
+      ${n.launchable && n.state !== "verrouille" ? `<button class="btn" data-go="${n.key}">${on(n) ? "Relancer" : "Lancer"} l'agent</button>` : ""}</div>`;
+    $("[data-go]", box)?.addEventListener("click", async (e) => { const r = await send(`/api/clients/${c.id}/agents/${e.currentTarget.dataset.go}`, { standard: std }); nav("run", r.run_id); });
+  };
+  const tw = $(".treewrap", box); tw.scrollLeft = (tw.scrollWidth - tw.clientWidth) / 2;
+  $$(".node", box).forEach((g) => { g.onclick = () => show(g.dataset.k); g.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); show(g.dataset.k); } }; });
+  $("#tmission", box).onclick = async () => { const r = await send(`/api/clients/${c.id}/agents/mission`, { standard: std }); nav("run", r.run_id); };
+  show(sel || (t.nodes.find((n) => n.state === "disponible") || t.nodes[0]).key);
 }
 
 ROUTES.agents = async () => {

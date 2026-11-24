@@ -270,3 +270,16 @@ def test_unknown_agent_and_roots_host_only():
     from fastapi.testclient import TestClient as _TC
     remote = _TC(app, client=("192.168.1.50", 5000))
     assert remote.post("/api/files/roots", json={"path": "/tmp"}).status_code == 403
+
+
+def test_agent_tree_states():
+    cid = _new(standards=["ISO 9001"])
+    t = c.get(f"/api/clients/{cid}/tree/ISO 9001").json()
+    st = {n["key"]: n["state"] for n in t["nodes"]}
+    assert st["preuves"] == "disponible" and st["capa"] == "verrouille" and st["organisme"] == "verrouille"
+    _wait(c.post(f"/api/clients/{cid}/agents/mission", json={"standard": "ISO 9001"}).json()["run_id"])
+    t = c.get(f"/api/clients/{cid}/tree/ISO 9001").json()
+    st = {n["key"]: n["state"] for n in t["nodes"]}
+    assert all(st[k] in ("acquis", "maitrise") for k in ("preuves", "qualite", "auditeur", "formateur", "capa", "pilote"))
+    assert st["certification"] == "disponible" and st["organisme"] == "verrouille"  # jamais « certifié » par Kapsi-Q
+    assert t["acquired"] == 6 and c.get("/api/clients/99999/tree/ISO 9001").status_code == 404

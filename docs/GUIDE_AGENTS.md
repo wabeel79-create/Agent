@@ -21,10 +21,13 @@ Seul le poste hôte peut modifier ces dossiers (protection contre un accès depu
 | Pilote du système | Suivi jusqu'à la certification | Tableau de pilotage, alertes, prochaines étapes |
 | Pré-certification | Simulation étapes 1 et 2 | Rapport d'audit à blanc, points bloquants |
 
-## 3. Valider
+## 3. L'arbre des agents
+En haut du menu **Agents** (et de l'onglet Agents d'un client), l'arbre montre les compétences de la mission pour la norme choisie : **verrouillé** (prérequis manquants), **disponible** (à lancer), **acquis** (fait), **maîtrisé** (≥ 80 % : documents validés, formations réalisées, actions clôturées…). Cliquez sur une compétence pour voir son détail et lancer l'agent. Le sommet « Certification » ne s'allume qu'à partir d'un indice de 85/100 et signifie « prêt à demander l'audit » : seul un organisme accrédité certifie.
+
+## 4. Valider
 Chaque document produit porte le statut **À valider**. Ouvrez-le, relisez, cliquez **Valider ce document** et saisissez le nom et la fonction du validateur. Pour l'audit interne, relisez la grille proposée dans le module Audits avant de la valider.
 
-## 4. Limites (à dire au client)
+## 5. Limites (à dire au client)
 - Le certificat est délivré uniquement par un organisme certificateur accrédité (ISO/IEC 17021-1).
 - Un audit interne doit être conduit sous la responsabilité d'un auditeur compétent et impartial (ISO 19011) : l'agent prépare, l'humain valide.
 - Les propositions de cotation reposent sur la présence de documents, pas sur leur application terrain : les entretiens et visites restent nécessaires.

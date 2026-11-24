@@ -421,6 +421,13 @@ def run_apply(rid: int):
     return {"applied": n}
 
 
+@app.get("/api/clients/{cid}/tree/{std}", dependencies=A)
+def agent_tree(cid: int, std: str):
+    if not store.get_client(cid):
+        raise HTTPException(404, "Client introuvable")
+    return agents.tree(cid, std)
+
+
 @app.get("/api/clients/{cid}/readiness/{std}", dependencies=A)
 def readiness(cid: int, std: str):
     _client(cid)
