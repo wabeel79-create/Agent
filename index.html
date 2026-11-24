@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kapsi-Q en action</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: product demo, calm and precise; every figure is the platform's own output on a fictive company.
+   IDEA: a skill tree of agents lighting up while a mission runs, like watching a team at work.
+   PICTURE: the agent tree, nodes go locked → running → acquired, with a live journal and a shelf of documents.
+   COLOUR and TYPE: Kapsi-Q brand: deep plum ground, pink lead, violet support, gold for running and mastered; Inter + JetBrains Mono for the journal.
+   LAYOUT: title, then one stage: tree left, mission panel right; consultant step and call to action below. */
+:root{color-scheme:dark;--bg:#1a0b20;--bg2:#24102c;--card:#2c1535;--line:#4a2a5a;--ink:#f7ecf3;--mute:#cdb3c4;--pink:#e8327f;--pink2:#ff6fae;--vio:#7b2ff7;--gold:#ffcc4d;--ok:#4fd18b}
+:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+a{color:var(--pink2)}
+.top{display:flex;align-items:center;gap:12px;padding:14px max(4vw,16px);border-bottom:1px solid var(--line);background:var(--bg2)}
+.logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,var(--pink),var(--vio));font:800 24px/1 Inter;color:#fff;flex:none}
+.top b{font-size:17px}.top small{display:block;color:var(--mute);font-size:13px}
+.top .sp{flex:1}
+.band{padding:clamp(20px,3.5vw,48px) max(4vw,16px)}
+.hero{background:radial-gradient(80% 120% at 25% 0%,#4a1660 0%,var(--bg) 60%);padding-bottom:12px}
+.in{max-width:1280px;margin:0 auto}
+h1{font-size:clamp(32px,4.4vw,48px);line-height:1.05;margin:0 0 10px;text-wrap:balance}
+.lede{color:var(--mute);max-width:68ch;margin:0}
+.stage{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(16px,2.4vw,28px);align-items:start}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:clamp(16px,2.2vw,22px)}
+.treebox{background:radial-gradient(120% 90% at 50% 0%,#3a1450 0%,#1f1024 62%,#160a1b 100%);border:1px solid var(--line);border-radius:18px;padding:12px 10px 8px}
+.treehead{display:flex;gap:12px;align-items:center;padding:4px 8px 0;flex-wrap:wrap}
+.treehead .t{flex:1;font-weight:700}.treehead .s{color:var(--mute);font-size:14px}
+.tw{overflow-x:auto}.tree{display:block;width:100%;min-width:600px;height:auto}
+.edge{fill:none;stroke:#4a3550;stroke-width:3;stroke-dasharray:6 6}.edge.lit{stroke:#ff5fa8;stroke-dasharray:none;filter:drop-shadow(0 0 4px #ff5fa8)}
+.nb{fill:#2a1733;stroke:#4a3550;stroke-width:2}.ni{font-size:22px;fill:#9a8496}.nn{font:700 15px Inter,sans-serif;fill:#e9dbe4}.ns{font:600 12px Inter,sans-serif;fill:#9a8496}
+.pb{fill:#3b2644}.pf{fill:#9a8496}
+.s-disponible .nb{stroke:#ff5fa8;stroke-width:2.5}.s-disponible .ns,.s-disponible .ni{fill:#ff8fc8}
+.s-encours .nb{stroke:var(--gold);stroke-width:3.5;fill:#3a2030}.s-encours .ns,.s-encours .ni{fill:var(--gold)}.s-encours .nn{fill:#fff}
+.s-acquis .nb{fill:#6a2ad0;stroke:#e8327f;stroke-width:2.5}.s-acquis text{fill:#fff}.s-acquis .pf{fill:var(--gold)}.s-acquis .pb{fill:rgba(255,255,255,.25)}
+.s-maitrise .nb{fill:#c2185b;stroke:var(--gold);stroke-width:3;filter:drop-shadow(0 0 8px rgba(255,204,77,.45))}.s-maitrise text{fill:#fff}.s-maitrise .pf{fill:var(--gold)}.s-maitrise .pb{fill:rgba(255,255,255,.25)}
+.human .nb{stroke-dasharray:8 5}
+@media(prefers-reduced-motion:no-preference){.s-encours .nb{animation:pulse 1s ease-in-out infinite}.s-disponible .nb{animation:pulse 1.8s ease-in-out infinite}.pf{transition:width .5s}.chip{animation:pop .35s ease-out}}
+@keyframes pulse{50%{stroke-opacity:.35}}@keyframes pop{from{opacity:0;transform:translateY(6px)}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--mute);font-size:13px;padding:4px 8px}.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:2px solid #4a3550;background:#2a1733}
+.legend .a{border-color:var(--gold)}.legend .b{background:#6a2ad0;border-color:#e8327f}.legend .c{background:#c2185b;border-color:var(--gold)}
+.step{color:var(--pink2);font-weight:700;font-size:14px}
+.cos{display:grid;gap:10px;margin:10px 0 14px}
+.co{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;text-align:left;padding:12px 14px;border-radius:14px;border:2px solid var(--line);background:var(--bg2);color:var(--ink);font:inherit;cursor:pointer;min-height:64px}
+.co:hover{border-color:var(--pink)}.co[aria-pressed=true]{border-color:var(--pink);background:#3a1440}
+.co b{font-size:16px}.co small{color:var(--mute);font-size:13px}.co .std{grid-row:span 2;align-self:center;padding:4px 10px;border-radius:999px;background:var(--pink);font-weight:700;font-size:13px;white-space:nowrap}
+.btn{min-height:46px;padding:0 20px;border-radius:999px;border:0;font:700 16px Inter,sans-serif;cursor:pointer;background:linear-gradient(90deg,var(--pink),var(--vio));color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+.btn.ghost{background:transparent;border:2px solid var(--line);color:var(--ink)}.btn.sm{min-height:36px;padding:0 14px;font-size:14px}
+.btn:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.kp{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center}
+.ring{width:96px;height:96px}.ring text{font:800 26px Inter;fill:#fff;text-anchor:middle}
+.cnt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.cnt div{background:var(--bg2);border-radius:10px;padding:6px 8px}.cnt b{display:block;font-size:20px;line-height:1.2}.cnt span{font-size:12.5px;color:var(--mute)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 8px}.bar .sp{flex:1}
+.spd{display:inline-flex;border:2px solid var(--line);border-radius:999px;overflow:hidden}.spd button{background:none;border:0;color:var(--mute);font:600 14px Inter;min-height:36px;padding:0 12px;cursor:pointer}.spd button[aria-pressed=true]{background:var(--line);color:#fff}
+.log{height:230px;overflow:auto;background:#140812;border-radius:12px;padding:10px 12px;font:13px/1.5 "JetBrains Mono",Consolas,monospace;color:#f3dde8;border:1px solid #3a2244}
+.log div{padding:1px 0}.log .step{color:#ff8fc8;font-weight:600;margin-top:6px;font-size:13px}.log .ok{color:#8ff0b8}.log .warn{color:#ffd27a}.log .doc{color:#cbb6ff}.log .info{color:#f3dde8}
+.shelf h3,.cons h3{font-size:15px;margin:12px 0 6px}
+.docs{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow:auto}
+.chip{font-size:12.5px;padding:4px 8px;border-radius:8px;background:var(--bg2);border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center}
+.chip i{font-style:normal;font-weight:700;font-size:11px;padding:1px 6px;border-radius:6px;background:#b86e00;color:#fff;white-space:nowrap}.chip.v i{background:#1e7a4c}
+.cons{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(16px,2.4vw,28px);align-items:start}
+.tasks{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.tasks li{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--bg2);border:1px solid var(--line)}
+.tasks li span{flex:1}.tasks li.done{border-color:#1e7a4c}.tasks li.done span{color:var(--mute);text-decoration:line-through}
+.note{border-left:4px solid var(--gold);padding:10px 14px;background:#2a1a24;border-radius:0 10px 10px 0;font-size:15px;margin:12px 0 0}
+.cta{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.cta .panel{display:flex;flex-direction:column;gap:8px}.cta .panel p{margin:0;color:var(--mute)}.cta .panel .btn{align-self:flex-start;margin-top:6px}
+.hide{display:none!important}
+.small{font-size:13px;color:var(--mute)}
+footer{border-top:1px solid var(--line);color:var(--mute);font-size:14px}footer .in{display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
+@media(max-width:960px){.stage,.cons,.cta{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.cnt{grid-template-columns:repeat(2,minmax(0,1fr))}.ring{width:80px;height:80px}.log{height:200px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="logo" aria-hidden="true">Ψ</div><div><b>Kapsi-Q</b><small>Plateforme ISO · SmartCell Technologies, La Soukra</small></div><span class="sp"></span><span class="small">Démonstration · entreprises fictives</span></header>
+
+<section class="band hero"><div class="in">
+  <h1>Regardez une équipe d'agents ISO au travail</h1>
+  <p class="lede">Choisissez une entreprise, lancez la mission et suivez les agents de Kapsi-Q : analyse des preuves, système documentaire, formations, audit interne, actions correctives et pilotage. Ensuite, vous prenez la place du consultant qui valide.</p>
+</div></section>
+
+<section class="band" style="padding-top:8px"><div class="in stage">
+  <div class="treebox">
+    <div class="treehead"><span class="t" id="tt">Arbre des agents</span><span class="s" id="ts">0/7 compétences acquises</span></div>
+    <div class="tw" id="tw"><svg class="tree" id="tree" viewBox="0 -10 1000 640" role="img" aria-label="Arbre des compétences des agents Kapsi-Q"></svg></div>
+    <div class="legend"><span><i></i>Verrouillé</span><span><i class="a"></i>En cours</span><span><i class="b"></i>Acquis</span><span><i class="c"></i>Maîtrisé (≥ 80 %)</span></div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div id="pick">
+      <div class="step">1. Choisissez une entreprise fictive</div>
+      <div class="cos" id="cos" role="radiogroup" aria-label="Entreprise"></div>
+      <button class="btn" id="go">▶ Lancer la mission</button>
+      <p class="small" style="margin:10px 0 0">Durée : environ 30 secondes. Les résultats sont ceux produits par Kapsi-Q sur ces entreprises de démonstration.</p>
+    </div>
+    <div id="run" class="hide">
+      <div class="kp"><svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="#3b2644" stroke-width="10"/><circle id="arc" cx="50" cy="50" r="42" fill="none" stroke="url(#g)" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 264" transform="rotate(-90 50 50)"/><defs><linearGradient id="g"><stop offset="0" stop-color="#e8327f"/><stop offset="1" stop-color="#ffcc4d"/></linearGradient></defs><text x="50" y="59" id="sc">0</text></svg>
+        <div><div class="step" id="rname"></div><div style="font-weight:700" id="verdict">Indice de préparation à la certification</div>
+          <div class="cnt" style="margin-top:8px"><div><b id="cd">0</b><span>documents</span></div><div><b id="cp">0</b><span>cotations proposées</span></div><div><b id="cn">0</b><span>non-conformités</span></div><div><b id="ca">0</b><span>actions</span></div><div><b id="cf">0</b><span>formations</span></div><div><b id="cc">—</b><span>audit interne</span></div></div></div></div>
+      <div class="bar"><span class="spd" role="group" aria-label="Vitesse"><button data-s="1" aria-pressed="true">×1</button><button data-s="2" aria-pressed="false">×2</button><button data-s="4" aria-pressed="false">×4</button></span><span class="sp"></span><button class="btn ghost sm" id="skip">Passer à la fin</button><button class="btn ghost sm" id="again">Changer d'entreprise</button></div>
+      <div class="log" id="log" aria-live="polite"></div>
+      <div class="shelf"><h3>Documents produits · statut « À valider »</h3><div class="docs" id="docs"></div></div>
+    </div>
+  </div>
+</div></section>
+
+<section class="band hide" id="consult" style="padding-top:0"><div class="in panel cons">
+  <div><div class="step">2. À vous : vous êtes le consultant</div><h2 style="margin:4px 0 6px;font-size:24px">Relisez, validez, faites agir l'entreprise</h2>
+    <p class="small" style="font-size:15px;margin:0">Les agents ont préparé le travail. C'est la personne compétente qui le rend valable : chaque tâche cochée fait monter l'indice, avec la même formule que dans la plateforme.</p>
+    <div class="note" id="cnote"></div></div>
+  <div><ul class="tasks" id="tasks"></ul><p class="small" id="tdone" style="margin:10px 0 0"></p></div>
+</div></section>
+
+<section class="band" style="padding-top:0"><div class="in cta">
+  <div class="panel"><b style="font-size:18px">Faites votre propre carte ISO</b><p>Six questions, deux minutes : votre point de départ, votre route jusqu'au certificat et les premiers agents à lancer.</p><a class="btn" href="carte-iso.html" rel="noopener">Ouvrir la Carte ISO gratuite</a></div>
+  <div class="panel"><b style="font-size:18px">Voir Kapsi-Q sur vos documents</b><p>Démonstration sur place ou en visio, sur une de vos missions réelles, installée chez vous : vos données ne quittent pas le cabinet.</p><a class="btn" id="wa" href="https://wa.me/21692548044" target="_blank" rel="noopener">Demander une démonstration sur WhatsApp</a><p class="small">smartcell.opencore@gmail.com · +216 92 548 044</p></div>
+</div></section>
+
+<footer class="band"><div class="in"><span>Entreprises fictives. Kapsi-Q prépare le système de management ; un consultant valide, et seul un organisme certificateur accrédité (ISO/IEC 17021-1) délivre le certificat.</span><span>© SmartCell Technologies</span></div></footer>
+
+<script>
+{
+const SYS = [["PR-SYS-01", "Maîtrise des informations documentées"], ["PR-SYS-02", "Audit interne"], ["PR-SYS-03", "Revue de direction"], ["PR-SYS-04", "Non-conformités et actions correctives"], ["PR-SYS-05", "Compétences, formation et sensibilisation"], ["PR-SYS-06", "Gestion des risques et opportunités"]];
+const F = [["F-01", "Sensibilisation au système de management"], ["F-02", "Pilotes de processus : piloter et mesurer"], ["F-03", "Auditeurs internes (ISO 19011)"], ["F-04", "Non-conformités et actions correctives"]];
+const CO = {
+  aero: { name: "AéroComposants Tunisie", sector: "Aéronautique, pièces usinées", size: 150, std: "ISO 9001",
+    files: ["Manuel qualité 2024.docx", "Plan de contrôle pièces.xlsx", "Évaluation fournisseurs 2025.xlsx", "Enquête satisfaction clients.pdf", "Matrice des compétences.xlsx"], nfiles: 38, prop: [9, 12, 8],
+    core: ["Politique qualité", "Cartographie des processus", "Registre des risques et opportunités", "Objectifs et indicateurs ISO 9001", "PV de revue de direction ISO 9001", "Plan de transition ISO 9001:2015 → 2026"],
+    procs: [...SYS, ["PR-QUA-01", "Revue des exigences clients"], ["PR-QUA-02", "Achats et évaluation des fournisseurs"], ["PR-QUA-03", "Maîtrise de la production et de la prestation"], ["PR-QUA-04", "Satisfaction client et réclamations"]],
+    tr: [...F, ["F-05", "Culture qualité et comportement éthique (ISO 9001:2026)"]], audit: [69, 0, 9], actions: 9, start: 14, run: 48, final: 83,
+    focus: "Pour ISO 9001, l'auditeur regardera d'abord la satisfaction des clients, la maîtrise des processus et la revue de direction." },
+  lait: { name: "Laiterie Vergers du Nord", sector: "Agroalimentaire, produits laitiers", size: 190, std: "ISO 22000",
+    files: ["Plan HACCP v3.docx", "Relevés températures chambre froide.xlsx", "Plan de nettoyage.docx", "Fiches de traçabilité lots.xlsx", "Analyses laboratoire 2025.pdf"], nfiles: 54, prop: [5, 11, 10],
+    core: ["Politique sécurité des denrées alimentaires", "Cartographie des processus", "Analyse des dangers (HACCP)", "Objectifs et indicateurs ISO 22000", "PV de revue de direction ISO 22000"],
+    procs: [...SYS, ["PR-SYS-07", "Veille et évaluation de la conformité réglementaire"], ["PR-SDA-01", "Analyse des dangers et plan HACCP"], ["PR-SDA-02", "Nettoyage et désinfection"], ["PR-SDA-03", "Traçabilité, retrait et rappel"]],
+    tr: [...F, ["F-09", "Bonnes pratiques d'hygiène et HACCP"]], audit: [54, 5, 7], actions: 12, start: 11, run: 38, final: 73,
+    focus: "Pour ISO 22000, le plan HACCP et les programmes prérequis sont le cœur de l'audit ; les 5 NC majeures doivent être levées avant tout audit de certification." },
+  call: { name: "Contact Center Médina", sector: "Centre d'appels offshore", size: 600, std: "ISO 27001",
+    files: ["Charte informatique.pdf", "Inventaire des actifs.xlsx", "Procédure sauvegardes.docx", "Registre des incidents 2025.xlsx", "Contrats sous-traitants IT.pdf"], nfiles: 61, prop: [7, 13, 9],
+    core: ["Politique sécurité de l'information", "Cartographie des processus", "Appréciation des risques de sécurité de l'information", "Objectifs et indicateurs ISO 27001", "PV de revue de direction ISO 27001", "Déclaration d'applicabilité ISO 27001"],
+    procs: [...SYS, ["PR-SYS-07", "Veille et évaluation de la conformité réglementaire"], ["PR-SI-01", "Gestion des incidents de sécurité de l'information"], ["PR-SI-02", "Contrôle d'accès et gestion des droits"], ["PR-SI-03", "Sauvegarde et restauration"]],
+    tr: [...F, ["F-08", "Cybersécurité et hameçonnage"]], audit: [62, 3, 8], actions: 11, start: 12, run: 42, final: 77,
+    focus: "Pour ISO 27001, l'auditeur partira de l'appréciation des risques et de la déclaration d'applicabilité des 93 mesures." },
+};
+const NODES = [["preuves", "Analyste des preuves", "⌕", 0, 285, []], ["qualite", "Responsable qualité", "▤", 0, 715, []], ["pilote", "Pilote du système", "◎", 1, 120, ["preuves"]],
+  ["auditeur", "Auditeur interne", "✓", 1, 500, ["preuves", "qualite"]], ["formateur", "Formateur", "☰", 1, 880, ["qualite"]], ["capa", "Actions correctives", "↻", 2, 500, ["auditeur"]],
+  ["certification", "Pré-certification", "◇", 3, 500, ["capa", "formateur", "pilote"]], ["organisme", "Certification", "★", 4, 500, ["certification"]]];
+const LBL = { verrouille: "Verrouillé", disponible: "Disponible", encours: "En cours…", acquis: "Acquis", maitrise: "Maîtrisé ★", pret: "Organisme accrédité" };
+const $ = (q) => document.querySelector(q), $$ = (q) => [...document.querySelectorAll(q)];
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let sel = "aero", st = {}, pr = {}, speed = 1, timer = null, ev = [], pos = 0, score = 0, cnt = {};
+
+function resetTree() { NODES.forEach(([k]) => { st[k] = "verrouille"; pr[k] = 0; }); st.preuves = st.qualite = "disponible"; }
+function drawTree() {
+  const Y = (l) => 560 - l * 125, W = 210, H = 94, by = Object.fromEntries(NODES.map((n) => [n[0], n])), on = (k) => st[k] === "acquis" || st[k] === "maitrise";
+  let h = "";
+  NODES.forEach(([k, , , l, x, req]) => req.forEach((r) => { const a = by[r], x1 = a[4], y1 = Y(a[3]) - H / 2, y2 = Y(l) + H / 2, my = (y1 + y2) / 2;
+    h += `<path class="edge ${on(r) ? "lit" : ""}" d="M${x1},${y1} C${x1},${my} ${x},${my} ${x},${y2}"/>`; }));
+  NODES.forEach(([k, name, ic, l, x]) => { const s = st[k], px = x - W / 2, py = Y(l) - H / 2, p = Math.round(pr[k]);
+    h += `<g class="s-${s} ${k === "organisme" ? "human" : ""}"><rect class="nb" x="${px}" y="${py}" width="${W}" height="${H}" rx="16"/>
+      <text class="ni" x="${px + 18}" y="${py + 32}">${s === "verrouille" ? "🔒︎" : ic}</text><text class="nn" x="${px + 46}" y="${py + 31}">${esc(name)}</text>
+      <text class="ns" x="${px + 18}" y="${py + 56}">${k === "organisme" && s === "verrouille" ? "Organisme accrédité" : LBL[s]}</text><text class="ns" x="${px + W - 18}" y="${py + 56}" text-anchor="end">${k === "organisme" ? "" : p + " %"}</text>
+      <rect class="pb" x="${px + 18}" y="${py + 68}" width="${W - 36}" height="7" rx="3.5"/><rect class="pf" x="${px + 18}" y="${py + 68}" width="${(W - 36) * p / 100}" height="7" rx="3.5"/></g>`; });
+  $("#tree").innerHTML = h;
+  const n = NODES.filter(([k]) => k !== "organisme" && on(k)).length;
+  $("#ts").textContent = `${n}/7 compétences acquises`;
+}
+function setScore(v) { score = v; $("#sc").textContent = Math.round(v); $("#arc").setAttribute("stroke-dasharray", `${2.64 * v} 264`);
+  $("#verdict").textContent = v >= 85 ? "Prêt à demander l'audit de certification" : v >= 60 ? "Audit à blanc recommandé avant la certification" : "Mise en place à poursuivre"; }
+function count(k, v) { cnt[k] = v; $("#" + k).textContent = v; }
+
+function plan(c) {
+  const E = [], step = (a, t) => E.push({ t: "step", m: `— ${t} —`, start: a }), L = (k, m, f) => E.push({ t: k, m, f }), D = (title, f) => E.push({ t: "doc", m: `Document produit : ${title}`, doc: title, f });
+  const end = (a, p, s) => E.push({ end: a, p, s });
+  E.push({ t: "step", m: `Agent Chef de mission démarré · ${c.name} · ${c.std}` });
+  step("preuves", "Analyste des preuves"); L("info", "Lecture du dossier client synchronisé avec Google Drive…"); L("info", `${c.nfiles} fichiers lus : ${c.files.slice(0, 3).join(", ")}…`);
+  L("info", `Exigences : ${c.prop[0]} avec preuves solides, ${c.prop[1]} partielles, ${c.prop[2]} sans preuve.`, () => count("cp", c.prop[0] + c.prop[1] + c.prop[2]));
+  D(`Cartographie des preuves ${c.std}`); end("preuves", 100, c.start + 8);
+  step("qualite", "Responsable qualité"); L("info", `Construction du système documentaire ${c.std}.`); c.core.forEach((d) => D(d)); L("info", `Rédaction de ${c.procs.length} procédures.`);
+  c.procs.forEach(([k, t]) => D(`${k} · ${t}`)); L("ok", "Feuille de route mise à jour. Documents au statut « À valider »."); end("qualite", 0, c.start + 18);
+  step("formateur", "Formateur"); c.tr.forEach(([k, t]) => D(`${k} · ${t}`)); D(`Plan de formation ${c.std}`); L("ok", `${c.tr.length} formations planifiées.`, () => count("cf", c.tr.length)); end("formateur", 0, c.start + 21);
+  step("auditeur", "Auditeur interne"); D(`Programme d'audit interne ${c.std}`); L("info", `Audit interne proposé : conformité ${c.audit[0]} %, ${c.audit[1]} NC majeure(s), ${c.audit[2]} NC mineure(s).`, () => { count("cn", c.audit[1] + c.audit[2]); $("#cc").textContent = c.audit[0] + " %"; });
+  D("Plan d'audit · audit interne"); D("Rapport d'audit · audit interne"); L("ok", `${c.actions} actions correctives ouvertes. Audit à relire et valider.`, () => count("ca", c.actions)); end("auditeur", c.audit[0], c.start + 28);
+  step("capa", "Actions correctives"); L("info", "Analyse des causes (méthode des 5 pourquoi), responsables et échéances."); D(`Plan d'actions correctives ${c.std}`); L("ok", `${c.actions} actions analysées.`); end("capa", 0, c.run - 4);
+  step("pilote", "Pilote du système"); D(`Tableau de pilotage ${c.std}`); L("ok", `Indice de préparation : ${c.run}/100.`); L("warn", "0 % des documents validés : relecture du consultant attendue."); L("warn", "Plan de formation réalisé à 0 %."); end("pilote", c.run, c.run);
+  E.push({ t: "ok", m: "Mission terminée. Les documents et l'audit interne attendent la validation du consultant.", fin: true });
+  return E;
+}
+function apply(e, fast) {
+  if (e.start) { st[e.start] = "encours"; }
+  if (e.end) { st[e.end] = e.p >= 80 ? "maitrise" : "acquis"; pr[e.end] = e.p; setScore(e.s); unlock(); }
+  if (e.m) { const d = document.createElement("div"); d.className = e.t; d.textContent = e.m; $("#log").append(d); if (!fast) $("#log").scrollTop = 1e6; }
+  if (e.doc) { count("cd", cnt.cd + 1); const s = document.createElement("span"); s.className = "chip"; s.innerHTML = `${esc(e.doc)} <i>À valider</i>`; $("#docs").append(s); }
+  if (e.f) e.f();
+  if (e.fin) finish();
+  if (!fast) drawTree();
+}
+function unlock() { NODES.forEach(([k, , , , , req]) => { if (st[k] === "verrouille" && k !== "organisme" && req.every((r) => st[r] === "acquis" || st[r] === "maitrise")) st[k] = "disponible"; }); }
+function tick() {
+  if (pos >= ev.length) return;
+  const e = ev[pos++]; apply(e, false);
+  const d = (e.t === "doc" ? 260 : e.t === "step" ? 900 : 650) / speed;
+  timer = setTimeout(tick, d);
+}
+function start() {
+  clearTimeout(timer); resetTree(); const c = CO[sel];
+  ["cd", "cp", "cn", "ca", "cf"].forEach((k) => count(k, 0)); $("#cc").textContent = "—"; $("#log").innerHTML = ""; $("#docs").innerHTML = "";
+  $("#rname").textContent = `${c.name} · ${c.std}`; $("#tt").textContent = `Arbre des agents · ${c.name}`; setScore(c.start);
+  $("#pick").classList.add("hide"); $("#run").classList.remove("hide"); $("#consult").classList.add("hide"); $("#skip").disabled = false;
+  ev = plan(c); pos = 0; drawTree(); timer = setTimeout(tick, 400 / speed);
+}
+function skip() { clearTimeout(timer); while (pos < ev.length) apply(ev[pos++], true); drawTree(); $("#log").scrollTop = 1e6; }
+
+function finish() {
+  $("#skip").disabled = true; st.certification = "disponible"; drawTree();
+  const c = CO[sel], gain = c.final - c.run;
+  const T = [["Relire et valider les documents du système", 0.4, () => { $$(".chip").forEach((d) => { d.classList.add("v"); d.querySelector("i").textContent = "Validé"; }); st.qualite = "maitrise"; pr.qualite = 100; }],
+    ["Réaliser les formations planifiées avec l'entreprise", 0.2, () => { st.formateur = "maitrise"; pr.formateur = 100; }],
+    ["Valider l'audit interne et lever les actions correctives", 0.4, () => { st.capa = "maitrise"; pr.capa = 100; }]];
+  const done = new Set();
+  $("#cnote").textContent = c.focus;
+  const draw = () => {
+    $("#tasks").innerHTML = T.map(([t], k) => `<li class="${done.has(k) ? "done" : ""}"><span>${esc(t)}</span>${done.has(k) ? "<b style='color:var(--ok)'>Fait</b>" : `<button class="btn sm" data-t="${k}">Valider</button>`}</li>`).join("");
+    $$("[data-t]").forEach((b) => b.addEventListener("click", () => { const k = +b.dataset.t; done.add(k); T[k][2]();
+      const v = c.run + Math.round(gain * [...done].reduce((a, i) => a + T[i][1], 0)); setScore(v); pr.pilote = v; if (v >= 80) st.pilote = "maitrise"; drawTree(); draw(); }));
+    $("#tdone").textContent = done.size === T.length ? `Indice final : ${c.final}/100. Prochaine étape : l'agent Pré-certification simule l'audit, puis l'entreprise s'adresse à un organisme accrédité. Le seuil conseillé de 85/100 n'est pas encore atteint : il reste du travail de terrain.` : "Chaque validation est un vrai travail du consultant : dans la plateforme, rien n'est validé automatiquement.";
+  };
+  draw(); $("#consult").classList.remove("hide");
+  $("#wa").href = "https://wa.me/21692548044?text=" + encodeURIComponent(`Bonjour SmartCell, j'ai vu la démo Kapsi-Q (${c.name}, ${c.std}). Je souhaite une démonstration sur mes propres missions.`);
+}
+
+$("#cos").innerHTML = Object.entries(CO).map(([k, c]) => `<button class="co" role="radio" aria-pressed="${k === sel}" aria-checked="${k === sel}" data-c="${k}"><b>${esc(c.name)}</b><span class="std">${esc(c.std)}</span><small>${esc(c.sector)} · ${c.size} salariés</small></button>`).join("");
+$$(".co").forEach((b) => b.addEventListener("click", () => { sel = b.dataset.c; $$(".co").forEach((x) => { x.setAttribute("aria-pressed", x === b); x.setAttribute("aria-checked", x === b); }); $("#tt").textContent = `Arbre des agents · ${CO[sel].name}`; }));
+$("#go").addEventListener("click", start);
+$("#skip").addEventListener("click", skip);
+$("#again").addEventListener("click", () => { clearTimeout(timer); resetTree(); drawTree(); $("#run").classList.add("hide"); $("#pick").classList.remove("hide"); $("#consult").classList.add("hide"); });
+$$(".spd button").forEach((b) => b.addEventListener("click", () => { speed = +b.dataset.s; $$(".spd button").forEach((x) => x.setAttribute("aria-pressed", x === b)); }));
+resetTree(); drawTree(); $("#tt").textContent = `Arbre des agents · ${CO[sel].name}`;
+const tw = $("#tw"); tw.scrollLeft = (tw.scrollWidth - tw.clientWidth) / 2;
+}
+</script>
+</body>
+</html>
