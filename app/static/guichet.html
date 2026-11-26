@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a0b20">
+<title>Guichet numérique</title>
+<link rel="icon" href="/static/icons/icon.svg">
+<style>
+:root{--bg:#1a0b20;--card:#2c1535;--line:#4a2a5a;--ink:#f7ecf3;--mute:#cdb3c4;--pink:#e8327f;--vio:#7b2ff7;--gold:#ffcc4d;--ok:#4fd18b}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(120% 60% at 50% 0%,#3a1450,var(--bg) 60%);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px}
+header{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--pink),var(--vio));font:800 24px/1 system-ui;color:#fff;flex:none}
+header b{display:block;font-size:17px}header small{color:var(--mute)}
+h1{font-size:26px;line-height:1.15;margin:6px 0 4px}
+p{margin:.4rem 0}.mute{color:var(--mute);font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-height:92px;padding:14px;border-radius:16px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:600 15px/1.25 system-ui;text-align:left;cursor:pointer}
+.tile span{font-size:22px}.tile small{font-weight:400;color:var(--mute);font-size:12.5px}.tile:hover,.tile:focus-visible{border-color:var(--pink)}
+.tile.wide{grid-column:1/-1;min-height:64px;flex-direction:row;align-items:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:12px}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+input,select,textarea{width:100%;font:16px system-ui;padding:12px;border-radius:12px;border:2px solid var(--line);background:#1f0f26;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pink)}
+textarea{min-height:96px;resize:vertical}
+.btn{display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:50px;width:100%;margin-top:16px;border:0;border-radius:999px;background:linear-gradient(90deg,var(--pink),var(--vio));color:#fff;font:700 17px system-ui;cursor:pointer}
+.btn.ghost{background:transparent;border:2px solid var(--line)}.btn:disabled{opacity:.5}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ticket{font:800 30px/1 ui-monospace,Menlo,monospace;letter-spacing:.06em;color:var(--gold);margin:8px 0}
+.steps{list-style:none;padding:0;margin:12px 0}.steps li{display:flex;gap:10px;align-items:center;padding:6px 0;color:var(--mute)}.steps li.on{color:var(--ink);font-weight:600}
+.steps i{width:14px;height:14px;border-radius:50%;background:var(--line);flex:none}.steps li.on i{background:var(--pink)}
+.err{color:#ff8a8a;font-weight:600}.ok{color:var(--ok);font-weight:600}
+.mine{list-style:none;padding:0;margin:8px 0}.mine li{padding:8px 0;border-bottom:1px solid var(--line)}.mine button{background:none;border:0;color:var(--gold);font:600 15px system-ui;cursor:pointer;padding:0}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+footer{margin-top:24px;color:var(--mute);font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="logo" aria-hidden="true">Ψ</div><div><b id="ename">Guichet numérique</b><small>Kapsi Campus · services de l'établissement</small></div></header>
+  <main id="app" aria-live="polite"></main>
+  <footer>Vos demandes sont enregistrées dans le système de management ISO 21001 de l'établissement. Elles servent uniquement au traitement et au suivi de la qualité des services.</footer>
+</div>
+<script>
+{
+const P = new URLSearchParams(location.search);
+let E = P.get("e"), CODE = P.get("code") || "", META = null;
+const $ = (q) => document.querySelector(q);
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const ICON = { tirage: "⎙", intervention: "🔧︎", informatique: "⌨", vehicule: "⛟", salle: "▦", video: "▣", fourniture: "✎", stylos: "✐", cle: "⚷", nettoyage: "✧", archive: "▤" };
+const EXTRA = {
+  tirage: [["pages", "Nombre de pages", "number"], ["copies", "Nombre d'exemplaires", "number"], ["needed_by", "Pour le (48 h minimum)", "datetime-local"]],
+  intervention: [["lieu", "Lieu (salle, bureau)", "text"], ["urgence", "Urgence", "select:Normale|Urgente"]],
+  informatique: [["lieu", "Laboratoire ou bureau", "text"], ["poste", "Numéro du poste (si connu)", "text"]],
+  vehicule: [["destination", "Destination", "text"], ["date", "Date et heure du départ", "datetime-local"], ["passagers", "Nombre de passagers", "number"]],
+  salle: [["date", "Date et heure", "datetime-local"], ["duree", "Durée", "text"], ["participants", "Participants", "number"]],
+  video: [["salle", "Salle", "text"], ["date", "Date et heure", "datetime-local"]],
+  fourniture: [["articles", "Articles et quantités", "text"]], stylos: [["couleurs", "Couleurs", "text"]], cle: [["salle", "Salle ou local", "text"]],
+  nettoyage: [["lieu", "Lieu", "text"]], archive: [["dossier", "Dossier recherché", "text"]],
+};
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : "Erreur " + r.status);
+  return j;
+}
+const fmt = (s) => s ? new Date(s.replace(" ", "T")).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+
+function login(msg) {
+  $("#app").innerHTML = `<h1>Bienvenue</h1><p class="mute">Saisissez le code d'accès affiché dans les salles, ou scannez le QR code.</p>
+    <div class="card"><label for="lc">Code d'accès</label><input id="lc" inputmode="numeric" autocomplete="off" value="${esc(CODE)}">${msg ? `<p class="err">${esc(msg)}</p>` : ""}<button class="btn" id="lok">Entrer</button></div>`;
+  $("#lok").onclick = () => { CODE = $("#lc").value.trim(); start(); };
+}
+async function start() {
+  if (!E) { $("#app").innerHTML = `<p class="err">Lien incomplet : scannez le QR code affiché dans l'établissement.</p>`; return; }
+  if (!CODE) return login();
+  try { META = await api(`/api/guichet/${E}?code=${encodeURIComponent(CODE)}`); } catch (e) { return login(e.message); }
+  $("#ename").textContent = META.name;
+  home();
+}
+function home() {
+  const mine = store.get("kc_tickets_" + E, []);
+  $("#app").innerHTML = `<h1>Que voulez-vous demander ?</h1><p class="mute">Votre demande arrive directement au bon service. Vous recevez un numéro de suivi.</p>
+    <div class="tiles">${Object.entries(META.types).map(([k, t]) => `<button class="tile" data-t="${k}"><span aria-hidden="true">${ICON[k] || "•"}</span>${esc(t.label.replace("Demande de ", "").replace(/^./, (c) => c.toUpperCase()))}<small>Délai ${t.delay} j · ${esc(t.form)}</small></button>`).join("")}
+      <button class="tile wide" data-t="reclamation"><span aria-hidden="true">✉</span>&nbsp;Réclamation ou suggestion</button>
+      <button class="tile wide" data-t="suivi"><span aria-hidden="true">⌕</span>&nbsp;Suivre une demande</button></div>
+    ${mine.length ? `<div class="card"><b>Mes demandes sur ce téléphone</b><ul class="mine">${mine.slice(0, 8).map((m) => `<li><button data-tk="${esc(m.t)}">${esc(m.t)}</button> · ${esc(m.l)}</li>`).join("")}</ul></div>` : ""}`;
+  document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => b.dataset.t === "suivi" ? track() : b.dataset.t === "reclamation" ? complaint() : form(b.dataset.t)));
+  document.querySelectorAll("[data-tk]").forEach((b) => (b.onclick = () => track(b.dataset.tk)));
+}
+function field([k, l, t]) {
+  if (t.startsWith("select:")) return `<label for="x_${k}">${l}</label><select id="x_${k}">${t.slice(7).split("|").map((o) => `<option>${o}</option>`).join("")}</select>`;
+  return `<label for="x_${k}">${l}</label><input id="x_${k}" type="${t}" ${t === "number" ? 'min="1" inputmode="numeric"' : ""}>`;
+}
+function form(type) {
+  const t = META.types[type], who = store.get("kc_who", {});
+  $("#app").innerHTML = `<h1>${esc(t.label)}</h1><p class="mute">Formulaire ${esc(t.form)} · traitement sous ${t.delay} jour(s) ouvrable(s).</p>
+    <div class="card"><div class="row2"><div><label for="fn">Nom et prénom</label><input id="fn" autocomplete="name" value="${esc(who.n || "")}"></div><div><label for="fd">Département ou service</label><input id="fd" value="${esc(who.d || "")}"></div></div>
+      <label for="fo">Objet</label><input id="fo" placeholder="${type === "tirage" ? "Ex. sujets d'examen, supports de TD" : "Décrivez votre besoin"}">
+      ${(EXTRA[type] || []).map(field).join("")}
+      ${type === "tirage" ? `<p class="mute">Règle de l'établissement : dépôt 48 heures à l'avance.</p>` : ""}
+      <p class="err" id="fe"></p><button class="btn" id="fs">Envoyer la demande</button><button class="btn ghost" id="fb">Retour</button></div>`;
+  $("#fb").onclick = home;
+  $("#fs").onclick = async () => {
+    const n = $("#fn").value.trim(), d = $("#fd").value.trim(), o = $("#fo").value.trim();
+    if (!n || !o) { $("#fe").textContent = "Indiquez votre nom et l'objet de la demande."; return; }
+    const details = {}; let needed = null, qty = 1;
+    (EXTRA[type] || []).forEach(([k]) => { const v = $("#x_" + k).value; if (!v) return; if (k === "needed_by") needed = v.replace("T", " "); else details[k] = v; });
+    if (type === "tirage") qty = Math.max(1, +(details.copies || 1));
+    if (details.urgence === "Urgente") details.urgence = "Urgente";
+    $("#fs").disabled = true;
+    try {
+      const r = await api(`/api/guichet/${E}`, { code: CODE, kind: "demande", type, requester: n, dept: d, title: o + (details.urgence === "Urgente" ? " (urgent)" : ""), details, qty, needed_by: needed });
+      store.set("kc_who", { n, d });
+      const mine = store.get("kc_tickets_" + E, []); mine.unshift({ t: r.ticket, l: t.label }); store.set("kc_tickets_" + E, mine.slice(0, 20));
+      done(r.ticket, `Votre demande est transmise au service ${r.service}. Échéance prévue : ${fmt(r.needed_by)}.`);
+    } catch (e) { $("#fe").textContent = e.message; $("#fs").disabled = false; }
+  };
+}
+function complaint() {
+  $("#app").innerHTML = `<h1>Réclamation ou suggestion</h1><p class="mute">Elle est transmise au service concerné, avec une réponse sous 7 jours.</p>
+    <div class="card"><label for="cs">Vous êtes</label><select id="cs"><option>Apprenant</option><option>Enseignant</option><option>Personnel</option><option>Parent</option><option>Visiteur</option></select>
+      <label for="ct">Votre réclamation ou suggestion</label><textarea id="ct" placeholder="Décrivez le problème, le lieu et le moment"></textarea>
+      <p class="err" id="ce"></p><button class="btn" id="cok">Envoyer</button><button class="btn ghost" id="cb">Retour</button></div>`;
+  $("#cb").onclick = home;
+  $("#cok").onclick = async () => {
+    const t = $("#ct").value.trim(); if (t.length < 5) { $("#ce").textContent = "Décrivez la réclamation."; return; }
+    $("#cok").disabled = true;
+    try { const r = await api(`/api/guichet/${E}`, { code: CODE, kind: "reclamation", subject: t, source: $("#cs").value }); done(r.ticket, `Réclamation transmise au service ${r.service}. Réponse attendue avant le ${new Date(r.due).toLocaleDateString("fr-FR")}.`, true); }
+    catch (e) { $("#ce").textContent = e.message; $("#cok").disabled = false; }
+  };
+}
+function done(ticket, msg, isComplaint) {
+  $("#app").innerHTML = `<div class="card" style="text-align:center"><p class="ok">✓ Enregistrée</p><p>Votre numéro de suivi</p><div class="ticket">${esc(ticket)}</div><p class="mute">${esc(msg)}</p>
+    ${isComplaint ? "" : `<button class="btn" id="dt">Suivre cette demande</button>`}<button class="btn ghost" id="dh">Nouvelle demande</button></div>`;
+  $("#dh").onclick = home; $("#dt")?.addEventListener("click", () => track(ticket));
+}
+async function track(t) {
+  $("#app").innerHTML = `<h1>Suivre une demande</h1><div class="card"><label for="tt">Numéro de suivi</label><input id="tt" value="${esc(t || "")}" placeholder="D-2611-XXXX" autocapitalize="characters"><button class="btn" id="tg">Voir l'état</button><button class="btn ghost" id="tb">Retour</button><div id="tr"></div></div>`;
+  $("#tb").onclick = home;
+  const go = async () => {
+    const v = $("#tt").value.trim().toUpperCase(); if (!v) return;
+    try {
+      const r = await api(`/api/guichet/${E}/ticket/${encodeURIComponent(v)}?code=${encodeURIComponent(CODE)}`);
+      const order = ["Nouvelle", "Planifiée", "En cours", "Réalisée", "Réceptionnée"], k = order.indexOf(r.status);
+      $("#tr").innerHTML = `<p style="margin-top:14px"><b>${esc(r.type_label)}</b> · ${esc(r.title)}</p><p class="mute">Service ${esc(r.service)} · échéance ${fmt(r.needed_by)}</p>
+        ${r.status === "Refusée" ? `<p class="err">Demande refusée : contactez le service.</p>` : `<ol class="steps">${order.map((s, i) => `<li class="${i <= k ? "on" : ""}"><i></i>${s === "Réceptionnée" ? "Réceptionnée par vous" : s}</li>`).join("")}</ol>`}
+        ${r.status === "Réalisée" ? `<p><b>Le service indique que c'est fait.</b> Confirmez la réception :</p><div class="row2"><button class="btn" data-s="1">✓ Reçu, satisfait</button><button class="btn ghost" data-s="0">Reçu, pas satisfait</button></div>` : ""}
+        ${r.status === "Réceptionnée" ? `<p class="ok">Merci, réception confirmée${r.satisfied === 0 ? " (non satisfait : le service est informé)" : ""}.</p>` : ""}`;
+      document.querySelectorAll("[data-s]").forEach((b) => (b.onclick = async () => { await api(`/api/guichet/${E}/ticket/${encodeURIComponent(v)}/receive`, { code: CODE, satisfied: b.dataset.s === "1" }); go(); }));
+    } catch (e) { $("#tr").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  };
+  $("#tg").onclick = go; if (t) go();
+}
+start();
+}
+</script>
+</body>
+</html>

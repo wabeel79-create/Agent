@@ -268,3 +268,12 @@ def update_training(tid, status):
 def list_trainings(cid=None):
     q = "SELECT * FROM trainings" + (" WHERE client_id=?" if cid else "") + " ORDER BY planned"
     return _rows(q, (cid,) if cid else ())
+
+
+def get_setting(key):
+    r = _one("SELECT value FROM settings WHERE key=?", (key,))
+    return r["value"] if r else None
+
+
+def set_setting(key, value):
+    _exec("INSERT OR REPLACE INTO settings VALUES (?,?)", (key, value))

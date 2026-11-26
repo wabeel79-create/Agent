@@ -96,7 +96,7 @@ DEMO = [
      "activities": "Déchargement des navires, Stockage des conteneurs, Livraison, Maintenance des engins", "contact": "Responsable QHSE",
      "standards": ["ISO 45001", "ISO 9001"], "level": 0.5,
      "audits": [("blanc", ["ISO 45001"], "2026-11-12", 0.6)], "agents": ["auditeur", "capa"], "validate": 0, "close": 0.0, "trained": 0},
-    {"name": "Université Privée NovaTech (démo)", "sector": "Enseignement supérieur privé", "size": "160",
+    {"campus": True, "name": "Université Privée NovaTech (démo)", "sector": "Enseignement supérieur privé", "size": "160",
      "activities": "Admissions, Enseignement, Stages et projets, Recherche, Diplomation", "contact": "Vice-président qualité",
      "standards": ["ISO 21001", "ISO 27001"], "level": 0.4,
      "audits": [], "agents": ["mission"], "validate": 2, "close": 0.0, "trained": 0},
@@ -189,6 +189,10 @@ def run(seed: int = 7) -> None:
         if d.get("agents"):
             _agents_work(c["id"], d, rnd)
         print("Créé :", d["name"])
+        if d.get("campus"):
+            from . import campus
+            campus.init(); campus.seed_demo(c["id"])
+            print("  Kapsi Campus : 7 mois d'activité des services généraux simulés")
 
 
 if __name__ == "__main__":

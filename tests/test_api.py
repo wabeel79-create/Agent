@@ -283,3 +283,70 @@ def test_agent_tree_states():
     assert all(st[k] in ("acquis", "maitrise") for k in ("preuves", "qualite", "auditeur", "formateur", "capa", "pilote"))
     assert st["certification"] == "disponible" and st["organisme"] == "verrouille"  # jamais « certifié » par Kapsi-Q
     assert t["acquired"] == 6 and c.get("/api/clients/99999/tree/ISO 9001").status_code == 404
+
+
+
+# ---------------------------------------------------------------- Kapsi Campus (ISO 21001)
+from app import campus as _campus
+
+
+def test_campus_request_lifecycle_and_indicators():
+    cid = _new(standards=["ISO 21001"])
+    r = c.post(f"/api/clients/{cid}/campus/requests", json={"type": "tirage", "requester": "Ens.", "dept": "Info", "title": "TD", "qty": 30, "needed_by": "2000-01-01 08:00"}).json()
+    assert r["form"] == "GSG-FR-03" and r["needed_by"] > r["created_at"]  # 48 h minimum imposés
+    assert c.post(f"/api/clients/{cid}/campus/requests", json={"type": "zzz"}).status_code == 400
+    assert c.put(f"/api/campus/requests/{r['id']}", json={"status": "Bof"}).status_code == 400
+    c.put(f"/api/campus/requests/{r['id']}", json={"status": "Réalisée"})
+    r2 = c.put(f"/api/campus/requests/{r['id']}", json={"status": "Réceptionnée", "satisfied": True}).json()
+    assert r2["received_at"] and r2["satisfied"] == 1
+    k = {i["code"]: i for i in c.get(f"/api/clients/{cid}/campus/indicators").json()["indicators"]}
+    assert k["GSG-4"]["value"] == 100.0 and k["GSG-4"]["ok"] is True
+    assert k["GSG-1"]["value"] is None and k["PED-1"]["mode"] == "Saisie"
+    assert c.put(f"/api/clients/{cid}/campus/indicators/PED-1", json={"value": 80}).status_code == 200
+    assert c.put(f"/api/clients/{cid}/campus/indicators/GSG-1", json={"value": 80}).status_code == 400
+    c.put(f"/api/clients/{cid}/campus/indicators/PED-1", json={"target": 70})
+    k = {i["code"]: i for i in c.get(f"/api/clients/{cid}/campus/indicators").json()["indicators"]}
+    assert k["PED-1"]["value"] == 80 and k["PED-1"]["ok"] is True
+
+
+def test_campus_tasks_assets_and_life():
+    cid = _new(standards=["ISO 21001"])
+    aid = c.post(f"/api/clients/{cid}/campus/assets", json={"category": "informatique", "code": "A104", "location": "Labo A 104", "label": "PC", "qty": 10}).json()["id"]
+    tid = c.post(f"/api/clients/{cid}/campus/tasks", json={"plan": "maintenance_info", "label": "Préventif", "date": "2026-01-05", "asset_id": aid}).json()["id"]
+    c.put(f"/api/campus/tasks/{tid}", json={"done": True})
+    life = c.get(f"/api/campus/assets/{aid}").json()
+    assert any(i["kind"] == "P" for i in life["interventions"])  # le préventif réalisé entre dans la fiche de vie
+    c.post(f"/api/campus/assets/{aid}/interventions", json={"kind": "C", "description": "Disque", "effective": False})
+    k = {i["code"]: i for i in c.get(f"/api/clients/{cid}/campus/indicators", params={"period": "2026"}).json()["indicators"]}
+    assert k["GSG-7a"]["value"] == 100.0
+    assert c.get(f"/api/clients/{cid}/campus/indicators", params={"period": "X9"}).status_code == 400
+
+
+def test_guichet_code_ticket_and_reception():
+    cid = _new(standards=["ISO 21001"])
+    code = c.get(f"/api/clients/{cid}/campus/guichet").json()["code"]
+    assert c.get(f"/api/guichet/{cid}", params={"code": "000000"}).status_code == 403
+    r = c.post(f"/api/guichet/{cid}", json={"code": code, "type": "informatique", "requester": "X", "title": "PC en panne"}).json()
+    t = c.get(f"/api/guichet/{cid}/ticket/{r['ticket']}", params={"code": code}).json()
+    assert t["status"] == "Nouvelle"
+    assert c.post(f"/api/guichet/{cid}/ticket/{r['ticket']}/receive", json={"code": code}).status_code == 409
+    rid = _campus.find_ticket(cid, r["ticket"])["id"]
+    c.put(f"/api/campus/requests/{rid}", json={"status": "Réalisée"})
+    assert c.post(f"/api/guichet/{cid}/ticket/{r['ticket']}/receive", json={"code": code, "satisfied": False}).json()["status"] == "Réceptionnée"
+    rc = c.post(f"/api/guichet/{cid}", json={"code": code, "kind": "reclamation", "subject": "Le Wi-Fi ne marche pas au labo"}).json()
+    assert rc["service"] == "Informatique"
+    from fastapi.testclient import TestClient as _TC
+    assert _TC(app, client=("192.168.1.9", 5000)).get(f"/api/clients/{cid}/campus/guichet", params={"renew": True}).status_code == 403
+
+
+def test_campus_demo_and_all_agents():
+    cid = _new(standards=["ISO 21001"])
+    s = c.post(f"/api/clients/{cid}/campus/demo").json()
+    assert s["assets"] > 100 and s["kpi_ok"] + s["kpi_ko"] >= 8
+    assert c.post(f"/api/clients/{cid}/campus/demo").status_code == 409
+    r = _wait(c.post(f"/api/clients/{cid}/agents/campus_pilote", json={"standard": "ISO 21001"}).json()["run_id"])
+    assert r["status"] == "Terminé", r["log"][-3:]
+    assert len(r["outputs"]["documents"]) >= 10
+    assert any(a["source"].startswith("Indicateur") for a in c.get(f"/api/clients/{cid}/actions").json())
+    keys = [a["key"] for a in c.get("/api/agents", params={"campus_only": True}).json()]
+    assert "campus_tableau" in keys and "mission" not in [a["key"] for a in c.get("/api/agents").json() if a["key"].startswith("campus_")]

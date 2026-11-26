@@ -3,6 +3,7 @@ Lancement : python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import secrets
@@ -14,16 +15,17 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import agents, engine, export, files, store
+from . import agents, campus, engine, export, files, store
 from .llm import PRESETS, llm
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 STATIC = Path(__file__).parent / "static"
 TOKEN = os.getenv("KAPSI_TOKEN", "")
 
 app = FastAPI(title="Kapsi-Q", version=VERSION, docs_url="/api/docs")
 store.init()
 files.init()
+campus.init()
 llm.configure(store.get_settings())
 
 
@@ -371,8 +373,8 @@ def _host_only(request: Request) -> None:
 
 
 @app.get("/api/agents", dependencies=A)
-def agent_list():
-    return [{"key": k, "name": v[0], "desc": v[1]} for k, v in agents.AGENTS.items()]
+def agent_list(campus_only: bool = False):
+    return [{"key": k, "name": v[0], "desc": v[1]} for k, v in agents.AGENTS.items() if k.startswith("campus_") == campus_only]
 
 
 @app.post("/api/clients/{cid}/agents/{key}", dependencies=A)
@@ -569,6 +571,278 @@ def test_llm():
         return {"ok": False, "message": "Aucun modèle configuré : Kapsi-Q fonctionne avec ses générateurs."}
     out = llm.generate("Réponds uniquement : « Kapsi-Q connecté. »", max_tokens=30, timeout=60)
     return {"ok": bool(out), "message": out or f"Échec : {llm.last_error}"}
+
+
+
+# --------------------------------------------------------------------- Kapsi Campus (ISO 21001)
+def _client_or_404(cid: int) -> dict:
+    c = store.get_client(cid)
+    if not c:
+        raise HTTPException(404, "Établissement introuvable")
+    return c
+
+
+def _bad(e: Exception):
+    raise HTTPException(400, str(e))
+
+
+@app.get("/api/campus/meta", dependencies=A)
+def campus_meta():
+    return {"types": {k: {"label": v[0], "form": v[1], "service": v[2], "delay": v[3]} for k, v in campus.TYPES.items()},
+            "statuses": campus.STATUSES, "plans": {k: {"label": v[0], "form": v[1]} for k, v in campus.PLANS.items()},
+            "categories": {k: {"label": v[0], "form": v[1]} for k, v in campus.CATEGORIES.items()},
+            "processes": [dict(zip(("code", "kind", "name", "pilot", "clauses", "mode"), p)) for p in campus.PROCESSES]}
+
+
+@app.get("/api/clients/{cid}/campus", dependencies=A)
+def campus_summary(cid: int):
+    _client_or_404(cid)
+    return campus.summary(cid)
+
+
+@app.get("/api/clients/{cid}/campus/requests", dependencies=A)
+def campus_requests(cid: int, status: str | None = None, type: str | None = None):
+    return campus.list_requests(cid, status, type)
+
+
+@app.post("/api/clients/{cid}/campus/requests", dependencies=A)
+def campus_add_request(cid: int, d: dict):
+    _client_or_404(cid)
+    try:
+        return campus.add_request(cid, d)
+    except ValueError as e:
+        _bad(e)
+
+
+@app.put("/api/campus/requests/{rid}", dependencies=A)
+def campus_update_request(rid: int, d: dict):
+    try:
+        return campus.update_request(rid, d)
+    except KeyError:
+        raise HTTPException(404, "Demande introuvable")
+    except ValueError as e:
+        _bad(e)
+
+
+@app.get("/api/clients/{cid}/campus/assets", dependencies=A)
+def campus_assets(cid: int):
+    return campus.list_assets(cid)
+
+
+@app.post("/api/clients/{cid}/campus/assets", dependencies=A)
+def campus_add_asset(cid: int, d: dict):
+    _client_or_404(cid)
+    try:
+        return {"id": campus.add_asset(cid, d)}
+    except ValueError as e:
+        _bad(e)
+
+
+@app.get("/api/campus/assets/{aid}", dependencies=A)
+def campus_asset(aid: int):
+    a = campus.asset_life(aid)
+    if not a:
+        raise HTTPException(404, "Équipement introuvable")
+    return a
+
+
+@app.post("/api/campus/assets/{aid}/interventions", dependencies=A)
+def campus_add_intervention(aid: int, d: dict):
+    a = campus.asset_life(aid)
+    if not a:
+        raise HTTPException(404, "Équipement introuvable")
+    return {"id": campus.add_intervention(a["client_id"], {**d, "asset_id": aid})}
+
+
+@app.get("/api/clients/{cid}/campus/tasks", dependencies=A)
+def campus_tasks(cid: int, plan: str | None = None, start: str | None = None, end: str | None = None):
+    return campus.list_tasks(cid, plan, start, end)
+
+
+@app.post("/api/clients/{cid}/campus/tasks", dependencies=A)
+def campus_add_task(cid: int, d: dict):
+    _client_or_404(cid)
+    try:
+        return {"id": campus.add_task(cid, d)}
+    except (ValueError, KeyError) as e:
+        _bad(e)
+
+
+@app.put("/api/campus/tasks/{tid}", dependencies=A)
+def campus_set_task(tid: int, d: dict):
+    campus.set_task(tid, bool(d.get("done")), d.get("note"))
+    return {"ok": True}
+
+
+@app.get("/api/clients/{cid}/campus/mail", dependencies=A)
+def campus_mail(cid: int):
+    return campus.list_mail(cid)
+
+
+@app.post("/api/clients/{cid}/campus/mail", dependencies=A)
+def campus_add_mail(cid: int, d: dict):
+    _client_or_404(cid)
+    return {"id": campus.add_mail(cid, d)}
+
+
+@app.put("/api/campus/mail/{mid}", dependencies=A)
+def campus_update_mail(mid: int, d: dict):
+    if d.get("status") not in ("Enregistré", "Diffusé", "Traité"):
+        raise HTTPException(400, "Statut inconnu")
+    campus.update_mail(mid, d["status"])
+    return {"ok": True}
+
+
+@app.get("/api/clients/{cid}/campus/calls", dependencies=A)
+def campus_calls(cid: int):
+    return campus.list_calls(cid)
+
+
+@app.post("/api/clients/{cid}/campus/calls", dependencies=A)
+def campus_add_call(cid: int, d: dict):
+    _client_or_404(cid)
+    return {"id": campus.add_call(cid, d)}
+
+
+@app.get("/api/clients/{cid}/campus/complaints", dependencies=A)
+def campus_complaints(cid: int):
+    return campus.list_complaints(cid)
+
+
+@app.post("/api/clients/{cid}/campus/complaints", dependencies=A)
+def campus_add_complaint(cid: int, d: dict):
+    _client_or_404(cid)
+    return campus.add_complaint(cid, d)
+
+
+@app.put("/api/campus/complaints/{kid}", dependencies=A)
+def campus_update_complaint(kid: int, d: dict):
+    try:
+        campus.update_complaint(kid, d)
+    except ValueError as e:
+        _bad(e)
+    return {"ok": True}
+
+
+@app.post("/api/clients/{cid}/campus/archive", dependencies=A)
+def campus_add_archive(cid: int, d: dict):
+    _client_or_404(cid)
+    return {"id": campus.add_archive(cid, d)}
+
+
+@app.get("/api/clients/{cid}/campus/indicators", dependencies=A)
+def campus_indicators(cid: int, period: str | None = None):
+    _client_or_404(cid)
+    try:
+        return campus.compute(cid, period)
+    except ValueError as e:
+        _bad(e)
+
+
+@app.put("/api/clients/{cid}/campus/indicators/{code}", dependencies=A)
+def campus_set_indicator(cid: int, code: str, d: dict):
+    try:
+        if "target" in d:
+            tg = json.loads(store.get_setting(f"campus.targets.{cid}") or "{}")
+            tg[code] = float(d["target"])
+            store.set_setting(f"campus.targets.{cid}", json.dumps(tg))
+        if "value" in d:
+            campus.set_measure(cid, code, d.get("period") or "courante", float(d["value"]), d.get("note", ""))
+    except (ValueError, TypeError) as e:
+        _bad(e)
+    return {"ok": True}
+
+
+@app.get("/api/clients/{cid}/campus/processes", dependencies=A)
+def campus_processes(cid: int):
+    return campus.processes(cid)
+
+
+@app.get("/api/clients/{cid}/campus/guichet", dependencies=A)
+def campus_guichet_admin(cid: int, request: Request, renew: bool = False):
+    _client_or_404(cid)
+    if renew:
+        _host_only(request)
+    return {"code": campus.guichet_code(cid, renew)}
+
+
+@app.post("/api/clients/{cid}/campus/demo", dependencies=A)
+def campus_demo(cid: int, request: Request):
+    _host_only(request)
+    _client_or_404(cid)
+    if campus.list_requests(cid, limit=1):
+        raise HTTPException(409, "Cet établissement a déjà des données")
+    campus.seed_demo(cid)
+    return campus.summary(cid)
+
+
+# Guichet numérique : ouvert aux demandeurs avec le code de l'établissement (pas de jeton administrateur)
+class GuichetIn(BaseModel):
+    code: str = Field(min_length=4, max_length=12)
+    kind: str = "demande"
+    type: str | None = None
+    requester: str = Field(default="", max_length=120)
+    dept: str = Field(default="", max_length=120)
+    title: str = Field(default="", max_length=200)
+    details: dict = {}
+    qty: int = Field(default=1, ge=1, le=5000)
+    needed_by: str | None = None
+    subject: str = Field(default="", max_length=1000)
+    source: str = "Apprenant"
+
+
+@app.get("/api/guichet/{cid}")
+def guichet_info(cid: int, code: str):
+    c = _client_or_404(cid)
+    if not campus.check_code(cid, code):
+        raise HTTPException(403, "Code d'accès invalide")
+    return {"name": c["name"], "types": {k: {"label": v[0], "form": v[1], "delay": v[3]} for k, v in campus.TYPES.items()}}
+
+
+@app.post("/api/guichet/{cid}")
+def guichet_submit(cid: int, d: GuichetIn):
+    _client_or_404(cid)
+    if not campus.check_code(cid, d.code):
+        raise HTTPException(403, "Code d'accès invalide")
+    if d.kind == "reclamation":
+        if len(d.subject.strip()) < 5:
+            raise HTTPException(400, "Décrivez la réclamation")
+        c = campus.add_complaint(cid, {"subject": d.subject, "source": d.source, "channel": "Guichet numérique"})
+        return {"ticket": c["ticket"], "service": c["service"], "due": c["due"]}
+    try:
+        r = campus.add_request(cid, {"type": d.type, "requester": d.requester, "dept": d.dept, "title": d.title, "details": d.details,
+                                     "qty": d.qty, "needed_by": d.needed_by})
+    except ValueError as e:
+        _bad(e)
+    return {"ticket": r["ticket"], "service": r["service"], "needed_by": r["needed_by"], "form": r["form"]}
+
+
+@app.get("/api/guichet/{cid}/ticket/{ticket}")
+def guichet_ticket(cid: int, ticket: str, code: str):
+    if not campus.check_code(cid, code):
+        raise HTTPException(403, "Code d'accès invalide")
+    r = campus.find_ticket(cid, ticket)
+    if not r:
+        raise HTTPException(404, "Ticket introuvable")
+    return {k: r[k] for k in ("ticket", "type_label", "title", "status", "needed_by", "done_at", "received_at", "satisfied", "service")}
+
+
+@app.post("/api/guichet/{cid}/ticket/{ticket}/receive")
+def guichet_receive(cid: int, ticket: str, d: dict):
+    if not campus.check_code(cid, str(d.get("code", ""))):
+        raise HTTPException(403, "Code d'accès invalide")
+    r = campus.find_ticket(cid, ticket)
+    if not r:
+        raise HTTPException(404, "Ticket introuvable")
+    if r["status"] != "Réalisée":
+        raise HTTPException(409, "La demande n'est pas encore réalisée")
+    r = campus.update_request(r["id"], {"status": "Réceptionnée", "satisfied": bool(d.get("satisfied", True)), "remark": (d.get("remark") or "")[:300] or None})
+    return {"status": r["status"]}
+
+
+@app.get("/guichet")
+def guichet_page():
+    return FileResponse(STATIC / "guichet.html")
 
 
 # --------------------------------------------------------------------- PWA
