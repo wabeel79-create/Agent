@@ -27,8 +27,23 @@
 | GSG-7a | Maintenance préventive informatique | Planning GSG-PL-05 coché |
 | GSG-7b | Efficacité des interventions curatives SI | Fiches de vie, case « efficace » |
 
+## Les 9 autres processus (Campus → Processus SMOE)
+| Code | Processus | Registres | Indicateurs automatiques |
+|---|---|---|---|
+| DIR | Pilotage et stratégie | Objectifs, revues de direction, parties intéressées, risques | DIR-1 à 3 |
+| PAC | Amélioration continue | Audits internes, non-conformités, enquêtes de satisfaction | PAC-1 à 4 |
+| PED-04 | Activités pédagogiques | Séances, syllabus, rattrapages, évaluation des enseignements | PED-1 à 4 |
+| GSP-05 | Stages et PFE | Conventions (guichet), PFE, placement | GSP-1 à 3 |
+| EXD-06 | Examens et délibérations | Sessions et publication, réclamations sur les notes (guichet) | EXD-1 à 3 |
+| GSA-07 | Scolarité | Documents de scolarité (guichet), inscriptions | GSA-1 et 2 |
+| GRH-08 | Ressources humaines | Plan de formation, entretiens, fiches de poste | GRH-1 à 3 |
+| GVU-10 | Vie universitaire | Activités (guichet), clubs | GVU-1 et 2 |
+| GAF-11 | Finances et achats | Budget, achats, fournisseurs | GAF-1 à 3 |
+
+Chaque pilote saisit dans ses registres (ou laisse le guichet les remplir) ; l'agent **Pilote SMOE** rédige les fiches processus, fait la revue de chaque processus et prépare la revue de direction.
+
 ## Limites
 - Les documents produits par les agents sont « À valider » par le pilote ou le RSMOE.
-- Les indicateurs des autres processus sont proposés : leurs pilotes les valident et les saisissent.
+- Les registres, codes de formulaires et cibles des processus autres que GSG sont proposés : leurs pilotes les valident et les adaptent. Sans enregistrement, un indicateur peut être saisi à la main.
 - Le certificat ISO 21001 est délivré uniquement par un organisme accrédité.
 - Le guichet est protégé par un code d'établissement, pas par un compte individuel : changez le code s'il circule hors de l'établissement.

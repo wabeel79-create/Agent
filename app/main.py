@@ -15,10 +15,10 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import agents, campus, engine, export, files, store
+from . import agents, campus, engine, export, files, smoe, store
 from .llm import PRESETS, llm
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 STATIC = Path(__file__).parent / "static"
 TOKEN = os.getenv("KAPSI_TOKEN", "")
 
@@ -26,6 +26,7 @@ app = FastAPI(title="Kapsi-Q", version=VERSION, docs_url="/api/docs")
 store.init()
 files.init()
 campus.init()
+smoe.init()
 llm.configure(store.get_settings())
 
 
@@ -374,7 +375,7 @@ def _host_only(request: Request) -> None:
 
 @app.get("/api/agents", dependencies=A)
 def agent_list(campus_only: bool = False):
-    return [{"key": k, "name": v[0], "desc": v[1]} for k, v in agents.AGENTS.items() if k.startswith("campus_") == campus_only]
+    return [{"key": k, "name": v[0], "desc": v[1]} for k, v in agents.AGENTS.items() if k.startswith(("campus_", "smoe_")) == campus_only]
 
 
 @app.post("/api/clients/{cid}/agents/{key}", dependencies=A)
@@ -776,6 +777,57 @@ def campus_demo(cid: int, request: Request):
     return campus.summary(cid)
 
 
+
+# --------------------------------------------------------------------- SMOE : tous les processus ISO 21001
+@app.get("/api/smoe/meta", dependencies=A)
+def smoe_meta():
+    return smoe.meta()
+
+
+@app.get("/api/clients/{cid}/smoe", dependencies=A)
+def smoe_overview(cid: int):
+    _client_or_404(cid)
+    return smoe.overview(cid)
+
+
+@app.get("/api/clients/{cid}/smoe/{process}/{register}", dependencies=A)
+def smoe_records(cid: int, process: str, register: str):
+    try:
+        smoe.reg(process, register)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return smoe.records(cid, process, register)
+
+
+@app.post("/api/clients/{cid}/smoe/{process}/{register}", dependencies=A)
+def smoe_add(cid: int, process: str, register: str, d: dict):
+    _client_or_404(cid)
+    try:
+        return smoe.add(cid, process, register, d.get("data") or {}, d.get("status"))
+    except ValueError as e:
+        _bad(e)
+
+
+@app.put("/api/smoe/records/{rid}", dependencies=A)
+def smoe_update(rid: int, d: dict):
+    try:
+        return smoe.update(rid, d)
+    except KeyError:
+        raise HTTPException(404, "Enregistrement introuvable")
+    except ValueError as e:
+        _bad(e)
+
+
+@app.post("/api/clients/{cid}/smoe/demo", dependencies=A)
+def smoe_demo(cid: int, request: Request):
+    _host_only(request)
+    _client_or_404(cid)
+    if store._rows("SELECT id FROM s_records WHERE client_id=? LIMIT 1", (cid,)):
+        raise HTTPException(409, "Cet établissement a déjà des enregistrements SMOE")
+    smoe.seed_demo(cid)
+    return {"ok": True}
+
+
 # Guichet numérique : ouvert aux demandeurs avec le code de l'établissement (pas de jeton administrateur)
 class GuichetIn(BaseModel):
     code: str = Field(min_length=4, max_length=12)
@@ -796,7 +848,11 @@ def guichet_info(cid: int, code: str):
     c = _client_or_404(cid)
     if not campus.check_code(cid, code):
         raise HTTPException(403, "Code d'accès invalide")
-    return {"name": c["name"], "types": {k: {"label": v[0], "form": v[1], "delay": v[3]} for k, v in campus.TYPES.items()}}
+    types = {k: {"label": v[0], "form": v[1], "delay": v[3]} for k, v in campus.TYPES.items()}
+    for k, (label, p, rg) in smoe.GUICHET.items():
+        types[k] = {"label": label, "form": rg["form"], "delay": rg["delay"], "process": p,
+                    "fields": [[f, l, t] for f, l, t in rg["fields"] if f not in ("etudiant", "niveau") and (t != "date" or f == "date")]}
+    return {"name": c["name"], "types": types}
 
 
 @app.post("/api/guichet/{cid}")
@@ -809,6 +865,20 @@ def guichet_submit(cid: int, d: GuichetIn):
             raise HTTPException(400, "Décrivez la réclamation")
         c = campus.add_complaint(cid, {"subject": d.subject, "source": d.source, "channel": "Guichet numérique"})
         return {"ticket": c["ticket"], "service": c["service"], "due": c["due"]}
+    if d.type and d.type.startswith("smoe:"):
+        if d.type not in smoe.GUICHET:
+            raise HTTPException(400, "Type de demande inconnu")
+        _, p, rg = smoe.GUICHET[d.type]
+        data = {**{k: v for k, v in (d.details or {}).items()}, "etudiant": d.requester}
+        if any(f == "niveau" for f, _, _ in rg["fields"]) and not data.get("niveau") and d.dept:
+            data["niveau"] = d.dept
+        if rg["title"] not in data and d.title:
+            data[rg["title"]] = d.title
+        try:
+            r = smoe.add(cid, p, rg["key"], data, requester=d.requester, ticket=campus._ticket("S"))
+        except ValueError as e:
+            _bad(e)
+        return {"ticket": r["ticket"], "service": smoe.PROCESSES[p]["name"], "needed_by": r["due"], "form": rg["form"]}
     try:
         r = campus.add_request(cid, {"type": d.type, "requester": d.requester, "dept": d.dept, "title": d.title, "details": d.details,
                                      "qty": d.qty, "needed_by": d.needed_by})
@@ -823,7 +893,12 @@ def guichet_ticket(cid: int, ticket: str, code: str):
         raise HTTPException(403, "Code d'accès invalide")
     r = campus.find_ticket(cid, ticket)
     if not r:
-        raise HTTPException(404, "Ticket introuvable")
+        s = smoe.find_ticket(cid, ticket)
+        if not s:
+            raise HTTPException(404, "Ticket introuvable")
+        rg = smoe.reg(s["process"], s["register"])
+        return {"ticket": s["ticket"], "type_label": rg["guichet"] or rg["label"], "title": s["title"], "status": s["status"], "statuses": rg["statuses"],
+                "needed_by": s["due"], "done_at": s["done_at"], "received_at": None, "satisfied": s["satisfied"], "service": smoe.PROCESSES[s["process"]]["name"]}
     return {k: r[k] for k in ("ticket", "type_label", "title", "status", "needed_by", "done_at", "received_at", "satisfied", "service")}
 
 

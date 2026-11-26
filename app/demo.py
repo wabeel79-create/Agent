@@ -191,8 +191,9 @@ def run(seed: int = 7) -> None:
         print("Créé :", d["name"])
         if d.get("campus"):
             from . import campus
-            campus.init(); campus.seed_demo(c["id"])
-            print("  Kapsi Campus : 7 mois d'activité des services généraux simulés")
+            from . import smoe
+            campus.init(); campus.seed_demo(c["id"]); smoe.init(); smoe.seed_demo(c["id"])
+            print("  Kapsi Campus : services généraux et 9 processus SMOE simulés")
 
 
 if __name__ == "__main__":

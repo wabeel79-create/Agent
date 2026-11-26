@@ -350,3 +350,57 @@ def test_campus_demo_and_all_agents():
     assert any(a["source"].startswith("Indicateur") for a in c.get(f"/api/clients/{cid}/actions").json())
     keys = [a["key"] for a in c.get("/api/agents", params={"campus_only": True}).json()]
     assert "campus_tableau" in keys and "mission" not in [a["key"] for a in c.get("/api/agents").json() if a["key"].startswith("campus_")]
+
+
+
+# ---------------------------------------------------------------- SMOE : tous les processus
+from app import smoe as _smoe
+
+
+def test_smoe_registers_status_and_indicators():
+    cid = _new(standards=["ISO 21001"])
+    meta = c.get("/api/smoe/meta").json()
+    assert set(meta) == {"DIR", "PAC", "PED-04", "GSP-05", "EXD-06", "GSA-07", "GRH-08", "GVU-10", "GAF-11"}
+    r = c.post(f"/api/clients/{cid}/smoe/PED-04/seances", json={"data": {"module": "Réseaux", "programmees": 28, "realisees": 27}}).json()
+    assert r["status"] == "En cours" and r["data"]["realisees"] == 27
+    assert c.post(f"/api/clients/{cid}/smoe/PED-04/seances", json={"data": {"programmees": "abc"}}).status_code == 400
+    assert c.post(f"/api/clients/{cid}/smoe/PED-04/zzz", json={"data": {}}).status_code == 400
+    assert c.put(f"/api/smoe/records/{r['id']}", json={"status": "Bof"}).status_code == 400
+    k = {i["code"]: i for i in c.get(f"/api/clients/{cid}/campus/indicators").json()["indicators"]}
+    assert k["PED-1"]["value"] == 96.4 and k["PED-1"]["mode"] == "Automatique" and k["PED-1"]["ok"] is True
+    d = c.post(f"/api/clients/{cid}/smoe/GSA-07/documents", json={"data": {"document": "Relevé de notes"}}).json()
+    assert d["due"] and c.put(f"/api/smoe/records/{d['id']}", json={"status": "Remise"}).json()["done_at"]
+    k = {i["code"]: i for i in c.get(f"/api/clients/{cid}/campus/indicators").json()["indicators"]}
+    assert k["GSA-2"]["value"] == 100.0 and k["GSA-1"]["lower_better"] is True
+    assert c.post(f"/api/clients/{cid}/smoe/GSA-07/documents", json={"data": {"document": "Carte grise"}}).status_code == 400
+
+
+def test_smoe_guichet_types_and_ticket():
+    cid = _new(standards=["ISO 21001"])
+    code = c.get(f"/api/clients/{cid}/campus/guichet").json()["code"]
+    types = c.get(f"/api/guichet/{cid}", params={"code": code}).json()["types"]
+    assert "smoe:GSA-07:documents" in types and types["smoe:GSA-07:documents"]["fields"]
+    r = c.post(f"/api/guichet/{cid}", json={"code": code, "type": "smoe:GSA-07:documents", "requester": "Étudiant X", "details": {"document": "Attestation d'inscription", "niveau": "L2"}}).json()
+    assert r["ticket"].startswith("S-") and r["service"] == "Scolarité"
+    t = c.get(f"/api/guichet/{cid}/ticket/{r['ticket']}", params={"code": code}).json()
+    assert t["status"] == "Demandée" and "Remise" in t["statuses"]
+    rec = _smoe.find_ticket(cid, r["ticket"])
+    assert rec["data"]["etudiant"] == "Étudiant X"
+    assert c.post(f"/api/guichet/{cid}", json={"code": code, "type": "smoe:XXX:yy"}).status_code == 400
+
+
+def test_smoe_demo_and_pilote():
+    cid = _new(standards=["ISO 21001"])
+    assert c.post(f"/api/clients/{cid}/smoe/demo").json()["ok"]
+    assert c.post(f"/api/clients/{cid}/smoe/demo").status_code == 409
+    ov = c.get(f"/api/clients/{cid}/smoe").json()
+    assert len(ov) == 9 and all(sum(r["n"] for r in o["registers"]) > 0 for o in ov)
+    k = c.get(f"/api/clients/{cid}/campus/indicators").json()["indicators"]
+    auto = [i for i in k if i["process"] not in ("GSG",) and i["mode"] == "Automatique" and i["value"] is not None]
+    assert len(auto) >= 25
+    r = _wait(c.post(f"/api/clients/{cid}/agents/campus_smoe", json={"standard": "ISO 21001"}).json()["run_id"])
+    assert r["status"] == "Terminé", r["log"][-3:]
+    titles = [d["title"] for d in r["outputs"]["documents"]]
+    assert sum(t.startswith("Fiche processus") for t in titles) == 9 and any("revue de direction" in t for t in titles)
+    keys = [a["key"] for a in c.get("/api/agents", params={"campus_only": True}).json()]
+    assert "campus_smoe" in keys and "smoe_fiches" in keys

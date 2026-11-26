@@ -450,14 +450,20 @@ def compute(cid: int, period: str | None = None) -> dict:
     for proc, code, name, formula, freq, _, source in INDICATORS:
         if proc == "GSG":
             v, detail = out[code]; mode = "Automatique"
-        elif proc == "PAC":
+        elif code == "PAC-1":
             today = dt.date.today().isoformat()
             acts = [a for a in store.list_actions(cid, None) if (a["created_at"] or "")[:10] >= s and (a["status"] == "Clôturée" or (a["due"] or "9") < today)]
             done = [a for a in acts if a["status"] == "Clôturée"]
             v, detail, mode = _pct(len(done), len(acts)), f"{len(done)}/{len(acts)} actions arrivées à échéance clôturées", "Automatique"
         else:
+            from . import smoe
+            s2 = s if period else (dt.date.today() - dt.timedelta(days={"Annuelle": 365, "Semestrielle": 182, "Trimestrielle": 91}.get(freq, 182))).isoformat()
+            sv = smoe.value(cid, code, s2, e)
             mm = manual.get(code)
-            v, detail, mode = (mm["value"] if mm else None), (mm["note"] if mm and mm["note"] else "Saisie du pilote"), "Saisie"
+            if sv and sv[0] is not None:
+                v, detail, mode = sv[0], sv[1], "Automatique"
+            else:
+                v, detail, mode = (mm["value"] if mm else None), (mm["note"] if mm and mm["note"] else "Saisie du pilote ou registre vide"), "Saisie"
         t = tg.get(code)
         ok = None if v is None or t is None else (v <= t if code in LOWER_IS_BETTER else v >= t)
         res.append({"process": proc, "code": code, "name": name, "formula": formula, "freq": freq, "source": source,
@@ -467,7 +473,7 @@ def compute(cid: int, period: str | None = None) -> dict:
 
 def set_measure(cid: int, code: str, period: str, value: float, note: str = "") -> None:
     proc = next((i[0] for i in INDICATORS if i[1] == code), None)
-    if not proc or proc in ("GSG", "PAC"):
+    if not proc or proc == "GSG" or code == "PAC-1":
         raise ValueError("Indicateur calculé automatiquement ou inconnu")
     _exec("INSERT OR REPLACE INTO c_measures(client_id,process,code,period,value,note) VALUES (?,?,?,?,?,?)", (cid, proc, code, period, float(value), note))
 

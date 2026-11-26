@@ -1,5 +1,12 @@
 # Notes de version
 
+## 2.2.0 — 26 novembre 2026 · SMOE complet (ISO 21001)
+- **Les 9 autres processus du SMOE** sont opérationnels (Campus → Processus SMOE) : DIR Pilotage et stratégie, PAC Amélioration continue, PED-04 Pédagogie, GSP-05 Stages et PFE, EXD-06 Examens et délibérations, GSA-07 Scolarité, GRH-08 Ressources humaines, GVU-10 Vie universitaire, GAF-11 Finances et achats.
+- Pour chacun : fiche (finalité, pilote, entrées, sorties, activités, exigences ISO 21001), registres avec statuts et délais, indicateurs **calculés automatiquement** sur les registres (35 indicateurs au total avec les 8 du GSG).
+- **Guichet étendu** : attestations et relevés de notes, conventions de stage, réclamations sur les notes, demandes d'activité de club, avec suivi par ticket.
+- **4 nouveaux agents** : Pilote SMOE, Rédacteur des fiches processus, Revue des processus (actions ouvertes sur les écarts), Revue de direction (éléments d'entrée ISO 21001, 9.3.2).
+- Registres, codes de formulaires et cibles des processus autres que GSG : **proposés, à valider par les pilotes** (le dossier de l'ISI ne décrivait que le GSG).
+
 ## 2.1.0 — 26 novembre 2026 · Kapsi Campus (ISO 21001)
 - **Menu Campus** : gestion opérationnelle d'un établissement d'enseignement, construite sur le processus Services généraux (GSG) de l'ISI.
 - **Guichet numérique** (`/guichet`, QR code + code d'accès) : tirage (48 h minimum imposées), intervention, informatique, véhicule, salle, vidéoprojecteur, fournitures, stylos, clé, nettoyage, archives, réclamations ; ticket de suivi et accusé de réception avec avis.

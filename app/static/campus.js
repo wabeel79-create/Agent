@@ -14,7 +14,7 @@ ROUTES.campus = async (cid, tab = "pilotage") => {
   if (!cl.some((c) => c.id === cid)) cid = cl[0].id;
   ls.set("kapsi_campus", cid);
   const tabs = [["pilotage", "Pilotage"], ["demandes", "Demandes"], ["equipements", "Équipements"], ["plannings", "Plannings"], ["courrier", "Courrier et appels"],
-    ["reclamations", "Réclamations"], ["processus", "Processus ISO 21001"], ["agents", "Agents"], ["guichet", "Guichet numérique"]];
+    ["reclamations", "Réclamations"], ["smoe", "Processus SMOE"], ["processus", "Tableau de bord ISO 21001"], ["agents", "Agents"], ["guichet", "Guichet numérique"]];
   view.innerHTML = `<div class="card row" style="margin-bottom:.8rem"><label for="ccl" class="sub" style="margin:0">Établissement</label>
       <select id="ccl" class="grow" style="max-width:460px">${cl.map((c) => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
       <span class="sub">Kapsi Campus · ISO 21001</span></div>
@@ -161,7 +161,7 @@ CTABS.processus = async (el, cid) => {
 
 CTABS.agents = async (el, cid) => {
   const [ag, runs] = await Promise.all([get("/api/agents?campus_only=true"), get(`/api/clients/${cid}/runs`)]);
-  const cr = runs.filter((r) => r.agent.startsWith("campus_"));
+  const cr = runs.filter((r) => r.agent.startsWith("campus_") || r.agent.startsWith("smoe_"));
   el.innerHTML = `<section class="card"><h2>Agents Kapsi Campus</h2><p class="sub">Ils travaillent sur les registres de l'établissement. Leurs documents sont produits au statut « À valider » ; ils ne modifient jamais une demande réceptionnée ni une donnée saisie par une personne.</p>
       <div class="grid">${ag.map((a) => `<div class="tile agent ${a.key === "campus_pilote" ? "lead" : ""}"><b>${esc(a.name)}</b><small>${esc(a.desc)}</small><button class="btn sm" data-run="${a.key}" style="margin-top:.6rem">Lancer</button></div>`).join("")}</div></section>
     <section class="card"><h2>Exécutions</h2>${cr.length ? `<ul class="list">${cr.map((r) => `<li data-run-id="${r.id}"><div><b>${esc(r.agent_name)}</b><div class="sub">${esc(r.created_at)}</div></div>${runPill(r.status)}</li>`).join("")}</ul>` : `<p class="sub">Aucune exécution.</p>`}</section>
@@ -185,4 +185,46 @@ CTABS.guichet = async (el, cid) => {
   if (window.qrcode) { const q = qrcode(0, "M"); q.addData(url); q.make(); $("#gqr").innerHTML = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); }
   $("#gcopy").onclick = async () => { try { await navigator.clipboard.writeText(url); toast("Lien copié"); } catch { toast(url); } };
   $("#gnew").onclick = async () => { if (!confirm("Changer le code ? L'ancien QR code ne fonctionnera plus.")) return; await get(`/api/clients/${cid}/campus/guichet?renew=true`); CTABS.guichet(el, cid); };
+};
+
+/* ------------------------------------------------------------- Processus SMOE (tous les processus hors GSG) */
+let SMETA = null;
+CTABS.smoe = async (el, cid, proc, rk) => {
+  SMETA = SMETA || await get("/api/smoe/meta");
+  const ov = await get(`/api/clients/${cid}/smoe`);
+  const total = ov.reduce((a, o) => a + o.registers.reduce((b, r) => b + r.n, 0), 0);
+  proc = proc || ls.get("kapsi_smoe_proc") || "PED-04"; ls.set("kapsi_smoe_proc", proc);
+  const o = ov.find((x) => x.code === proc) || ov[0], m = SMETA[o.code];
+  rk = rk || m.registers[0].key;
+  const rg = m.registers.find((r) => r.key === rk) || m.registers[0];
+  const recs = await get(`/api/clients/${cid}/smoe/${o.code}/${rg.key}`);
+  const card = (x) => { const ok = x.indicators.filter((i) => i.ok).length, ko = x.indicators.filter((i) => i.ok === false).length, late = x.registers.reduce((a, r) => a + r.late, 0);
+    return `<button class="pcard ${x.code === o.code ? "on" : ""}" data-p="${esc(x.code)}"><b>${esc(x.code)}</b><span>${esc(x.name)}</span><small>${ok} ✓ · ${ko} sous la cible${late ? ` · ${late} en retard` : ""}</small></button>`; };
+  const field = ([k, l, t]) => t.startsWith("select:") ? `<label class="fl"><span>${esc(l)}</span><select data-nf="${k}"><option value=""></option>${t.slice(7).split("|").map((x) => `<option>${esc(x)}</option>`).join("")}</select></label>`
+    : `<label class="fl"><span>${esc(l)}</span><input data-nf="${k}" type="${t === "number" ? "number" : t === "date" ? "date" : "text"}" ${t === "number" ? 'step="any"' : ""}></label>`;
+  const fmtv = (i) => i.value === null || i.value === undefined ? "—" : i.lower_better ? `${i.value} j` : `${i.value} %`;
+  el.innerHTML = `${total ? "" : `<section class="card"><h2>Démarrer les processus SMOE</h2><p>Aucun enregistrement. Saisissez dans chaque registre, ouvrez le guichet aux apprenants (attestations, relevés, conventions, réclamations sur les notes, activités), ou chargez la démonstration.</p><button class="btn" id="sdemo" data-busy="Chargement…">Charger la démonstration des 9 processus</button></section>`}
+    <div class="pcards">${ov.map(card).join("")}</div>
+    <section class="card"><div class="cols"><div><h2 style="margin-top:0">${esc(o.code)} · ${esc(o.name)}</h2><p>${esc(o.purpose)}</p>
+        <p class="sub">Pilote : <b>${esc(o.pilot)}</b> · Processus de ${esc(o.kind.toLowerCase())} · ISO 21001 § ${esc(o.clauses)}</p>
+        <details><summary class="sub" style="cursor:pointer">Entrées, sorties et activités</summary><div class="cols" style="margin-top:.5rem"><div><b>Entrées</b><ul>${o.inputs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><b>Sorties</b><ul>${o.outputs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div><div><b>Activités</b><ol>${o.activities.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></div></div></details></div>
+      <div>${o.indicators.map((i) => `<div class="kbar"><div class="kl"><b>${esc(i.code)}</b> ${esc(i.name)}<div class="sub">${esc(i.detail)} · ${esc(i.freq)}</div></div>
+        <div class="kt"><div class="kf ${i.ok === false ? "ko" : i.ok ? "ok" : ""}" style="width:${i.value === null ? 0 : i.lower_better ? Math.min(100, 100 * i.target / Math.max(i.value, .1)) : Math.min(100, i.value)}%"></div>${i.lower_better ? "" : `<i style="left:${i.target}%"></i>`}</div>
+        <div class="kv"><b>${fmtv(i)}</b><small>cible ${i.lower_better ? i.target + " j" : i.target + " %"}</small></div></div>`).join("")}</div></div></section>
+    <div class="tabs">${o.registers.map((r) => `<button data-rk="${esc(r.key)}" class="${r.key === rg.key ? "on" : ""}">${esc(r.label)} <span class="sub">${r.n}${r.late ? ` · ${r.late} en retard` : ""}</span></button>`).join("")}</div>
+    <section class="card"><h2>${esc(rg.label)} <span class="sub">${esc(rg.form)}${rg.delay ? ` · délai ${rg.delay} jours` : ""}${rg.guichet ? " · ouvert au guichet" : ""}</span></h2>
+      <details><summary class="btn sm" style="display:inline-flex">+ Nouvel enregistrement</summary><div class="fgrid">${rg.fields.map(field).join("")}<label class="fl"><span>Statut</span><select data-nst>${rg.statuses.map((x) => `<option>${esc(x)}</option>`).join("")}</select></label></div><button class="btn" id="sadd">Enregistrer</button></details>
+      <div class="tbl" style="margin-top:.8rem"><table><thead><tr><th>Créé le</th>${rg.fields.map(([, l]) => `<th>${esc(l)}</th>`).join("")}${rg.delay ? "<th>Échéance</th>" : ""}<th>Statut</th></tr></thead><tbody>
+      ${recs.slice(0, 120).map((r) => `<tr data-sr="${r.id}"><td>${esc(r.created_at.slice(0, 10))}${r.ticket ? `<div class="sub">${esc(r.ticket)}</div>` : ""}</td>${rg.fields.map(([k]) => `<td>${esc(r.data[k] ?? "")}</td>`).join("")}
+        ${rg.delay ? `<td>${r.late ? `<b style="color:#c92a45">${esc(r.due || "")}</b>` : esc(r.due || "")}</td>` : ""}<td><select data-ss>${rg.statuses.map((x) => `<option ${x === r.status ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></td></tr>`).join("") || `<tr><td colspan="${rg.fields.length + 3}">Aucun enregistrement.</td></tr>`}</tbody></table></div>
+      ${recs.length > 120 ? `<p class="sub">120 derniers enregistrements affichés sur ${recs.length}.</p>` : ""}</section>
+    <section class="card row"><span class="grow sub">Les agents Pilote SMOE, Revue des processus et Revue de direction travaillent sur ces registres.</span><button class="btn" id="spil">▶ Lancer le Pilote SMOE</button></section>`;
+  $$(".pcard", el).forEach((b) => (b.onclick = () => CTABS.smoe(el, cid, b.dataset.p)));
+  $$("[data-rk]", el).forEach((b) => (b.onclick = () => CTABS.smoe(el, cid, o.code, b.dataset.rk)));
+  $$("[data-ss]", el).forEach((s) => (s.onchange = async () => { await send(`/api/smoe/records/${s.closest("tr").dataset.sr}`, { status: s.value }, "PUT"); saved(); }));
+  $("#sadd").onclick = async () => { const data = {}; $$("[data-nf]", el).forEach((f) => { if (f.value !== "") data[f.dataset.nf] = f.value; });
+    if (!Object.keys(data).length) return toast("Remplissez au moins un champ");
+    await send(`/api/clients/${cid}/smoe/${o.code}/${rg.key}`, { data, status: $("[data-nst]", el).value }); toast("Enregistré"); CTABS.smoe(el, cid, o.code, rg.key); };
+  $("#sdemo")?.addEventListener("click", (e) => busy(e.currentTarget, async () => { await send(`/api/clients/${cid}/smoe/demo`); toast("Démonstration chargée"); CTABS.smoe(el, cid, o.code); }));
+  $("#spil").onclick = async () => { const r = await send(`/api/clients/${cid}/agents/campus_smoe`, { standard: "ISO 21001" }); nav("run", r.run_id); };
 };
