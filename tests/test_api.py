@@ -404,3 +404,41 @@ def test_smoe_demo_and_pilote():
     assert sum(t.startswith("Fiche processus") for t in titles) == 9 and any("revue de direction" in t for t in titles)
     keys = [a["key"] for a in c.get("/api/agents", params={"campus_only": True}).json()]
     assert "campus_smoe" in keys and "smoe_fiches" in keys
+
+
+
+# ---------------------------------------------------------------- Pilotes IA
+from app import pilots as _pilots
+import datetime as _dt
+
+
+def test_ai_pilots_run_alerts_and_mandate():
+    cid = _new(standards=["ISO 21001"])
+    c.post(f"/api/clients/{cid}/smoe/demo"); c.post(f"/api/clients/{cid}/campus/demo")
+    st = c.get(f"/api/clients/{cid}/pilots").json()
+    assert len(st["pilots"]) == 10 and st["auto"] == "off" and all(p["human"] for p in st["pilots"])
+    # un statut saisi par une personne n'est jamais modifié par les pilotes IA
+    before = {(r["id"], r["status"]) for r in _smoe.records(cid, "GSA-07", "documents", 5000)}
+    r = _wait(c.post(f"/api/clients/{cid}/agents/pia_tous", json={"standard": "ISO 21001"}).json()["run_id"])
+    assert r["status"] == "Terminé", r["log"][-3:]
+    assert {(x["id"], x["status"]) for x in _smoe.records(cid, "GSA-07", "documents", 5000)} == before
+    assert sum(d["title"].startswith("Point du Pilote IA") for d in r["outputs"]["documents"]) == 10
+    st = c.get(f"/api/clients/{cid}/pilots").json()
+    assert all(p["health"] is not None for p in st["pilots"]) and any(p["alerts"] for p in st["pilots"])
+    acts = c.get(f"/api/clients/{cid}/actions").json()
+    assert any(a["source"].startswith("Pilote IA") for a in acts) and all(a["status"] == "Ouverte" for a in acts if a["source"].startswith("Pilote IA"))
+    # un second passage n'ouvre pas de doublon
+    n = len(acts); _wait(c.post(f"/api/clients/{cid}/agents/pia_tous", json={"standard": "ISO 21001"}).json()["run_id"])
+    assert len(c.get(f"/api/clients/{cid}/actions").json()) == n
+
+
+def test_ai_pilot_settings_and_schedule():
+    cid = _new(standards=["ISO 21001"])
+    st = c.put(f"/api/clients/{cid}/pilots", json={"auto": "hebdomadaire", "humans": {"GSA-07": "Mme Scolarité"}}).json()
+    assert st["auto"] == "hebdomadaire" and next(p for p in st["pilots"] if p["code"] == "GSA-07")["human"] == "Mme Scolarité"
+    assert c.put(f"/api/clients/{cid}/pilots", json={"auto": "toujours"}).status_code == 400
+    assert c.put(f"/api/clients/{cid}/pilots", json={"humans": {"ZZZ": "x"}}).status_code == 400
+    monday = _dt.datetime(2026, 11, 30, 8, 0); tuesday = monday + _dt.timedelta(days=1)
+    assert _pilots._due(cid, "hebdomadaire", monday) and not _pilots._due(cid, "hebdomadaire", tuesday)
+    assert _pilots._due(cid, "quotidien", tuesday) and not _pilots._due(cid, "off", monday)
+    assert not _pilots._due(cid, "quotidien", tuesday.replace(hour=6))

@@ -1,5 +1,12 @@
 # Notes de version
 
+## 2.3.0 — 27 novembre 2026 · Pilotes IA
+- **Un pilote IA par processus** (10) : Stratégie, Amélioration, Pédagogie, Stages, Examens, Scolarité, Compétences, Services généraux, Vie universitaire, Finances (Campus → Pilotes IA).
+- Chacun a une mission, une liste de surveillance, une routine et des règles d'escalade ; il calcule la **santé du processus** (0-100), envoie ses **alertes au pilote humain nommé** et ouvre une action sur chaque indicateur sous la cible (sans doublon).
+- **Mandat limité** : lire, relancer, ouvrir une action, préparer, alerter. Jamais : changer un statut saisi par une personne, clôturer une action ou une NC, valider un document, modifier une cible.
+- **Passage automatique** chaque jour ou chaque lundi à 7 h, tant que le poste hôte est allumé.
+- Le pilote humain de chaque processus se nomme à l'écran (ISO 21001, 5.3).
+
 ## 2.2.0 — 26 novembre 2026 · SMOE complet (ISO 21001)
 - **Les 9 autres processus du SMOE** sont opérationnels (Campus → Processus SMOE) : DIR Pilotage et stratégie, PAC Amélioration continue, PED-04 Pédagogie, GSP-05 Stages et PFE, EXD-06 Examens et délibérations, GSA-07 Scolarité, GRH-08 Ressources humaines, GVU-10 Vie universitaire, GAF-11 Finances et achats.
 - Pour chacun : fiche (finalité, pilote, entrées, sorties, activités, exigences ISO 21001), registres avec statuts et délais, indicateurs **calculés automatiquement** sur les registres (35 indicateurs au total avec les 8 du GSG).

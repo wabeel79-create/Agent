@@ -42,6 +42,14 @@
 
 Chaque pilote saisit dans ses registres (ou laisse le guichet les remplir) ; l'agent **Pilote SMOE** rédige les fiches processus, fait la revue de chaque processus et prépare la revue de direction.
 
+## Pilotes IA (Campus → Pilotes IA)
+1. Nommez le **pilote humain** de chaque processus (il décide et valide).
+2. Choisissez le **passage automatique** : chaque jour ou chaque lundi à 7 h (le poste hôte doit être allumé et Kapsi-Q démarré).
+3. Chaque passage produit, par processus, un **point du pilote IA** (santé, indicateurs, points à décider, informations) au statut « À valider », et ouvre une action sur chaque indicateur sous la cible.
+4. Le pilote humain traite les points « À décider », puis valide le point.
+
+Mandat : le pilote IA peut lire, relancer, ouvrir une action, préparer et alerter. Il ne change jamais un statut saisi par une personne, ne clôture rien, ne valide aucun document et ne modifie aucune cible.
+
 ## Limites
 - Les documents produits par les agents sont « À valider » par le pilote ou le RSMOE.
 - Les registres, codes de formulaires et cibles des processus autres que GSG sont proposés : leurs pilotes les valident et les adaptent. Sans enregistrement, un indicateur peut être saisi à la main.

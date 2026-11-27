@@ -1,4 +1,4 @@
-# Kapsi-Q 2.2
+# Kapsi-Q 2.3
 
 **Plateforme de mise en place des systèmes de management ISO et d'audit tierce partie**, par **SmartCell Technologies** (Soukra, Ariana).
 Installée sur le serveur du cabinet de conseil : les données clients restent chez lui, et la plateforme fonctionne sans Internet.
@@ -20,7 +20,7 @@ Toutes partagent la structure harmonisée (chapitres 4 à 10) plus leurs exigenc
 | **Assistant** | Questions-réponses sur les exigences de toutes les normes |
 | **Agents (v2.0)** | 8 agents qui font le travail d'un responsable qualité et d'un auditeur interne : analyse des preuves dans les dossiers et le Drive du client, système documentaire et procédures, formations, audit interne, actions correctives, pilotage jusqu'à la certification, audit à blanc. Voir `docs/GUIDE_AGENTS.md` |
 | **Actions / Formations** | Plan d'actions correctives suivi (responsable, échéance, retards) et plan de formation (statut, supports, émargements) |
-| **Kapsi Campus (v2.1)** | Gestion d'un établissement d'enseignement en ISO 21001 : guichet numérique mobile (QR code), demandes, équipements et fiches de vie, plannings, courrier, réclamations, et les 10 processus du SMOE (fiches, registres, 35 indicateurs calculés automatiquement), 11 agents Campus et SMOE. Voir `docs/GUIDE_CAMPUS.md` |
+| **Kapsi Campus (v2.1)** | Gestion d'un établissement d'enseignement en ISO 21001 : guichet numérique mobile (QR code), demandes, équipements et fiches de vie, plannings, courrier, réclamations, et les 10 processus du SMOE (fiches, registres, 35 indicateurs calculés automatiquement), 11 agents Campus et SMOE, et 10 pilotes IA (un co-pilote par processus, au mandat limité, avec passage automatique). Voir `docs/GUIDE_CAMPUS.md` |
 | **Documents et Drive** | Dossiers du poste hôte (y compris Google Drive pour ordinateur) indexés et consultables par les agents, en lecture seule ou en écriture |
 
 Chaque document s'affiche dans la plateforme et s'exporte en **Word (.docx)** ou en PDF (impression).

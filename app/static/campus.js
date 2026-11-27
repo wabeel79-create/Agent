@@ -13,7 +13,7 @@ ROUTES.campus = async (cid, tab = "pilotage") => {
   cid = cid || +ls.get("kapsi_campus") || (cl.find((c) => /21001|ISI|Universit|Institut|École|Ecole/i.test(c.name)) || cl[0]).id;
   if (!cl.some((c) => c.id === cid)) cid = cl[0].id;
   ls.set("kapsi_campus", cid);
-  const tabs = [["pilotage", "Pilotage"], ["demandes", "Demandes"], ["equipements", "Équipements"], ["plannings", "Plannings"], ["courrier", "Courrier et appels"],
+  const tabs = [["pilotage", "Pilotage"], ["pilotes", "Pilotes IA"], ["demandes", "Demandes"], ["equipements", "Équipements"], ["plannings", "Plannings"], ["courrier", "Courrier et appels"],
     ["reclamations", "Réclamations"], ["smoe", "Processus SMOE"], ["processus", "Tableau de bord ISO 21001"], ["agents", "Agents"], ["guichet", "Guichet numérique"]];
   view.innerHTML = `<div class="card row" style="margin-bottom:.8rem"><label for="ccl" class="sub" style="margin:0">Établissement</label>
       <select id="ccl" class="grow" style="max-width:460px">${cl.map((c) => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
@@ -161,7 +161,7 @@ CTABS.processus = async (el, cid) => {
 
 CTABS.agents = async (el, cid) => {
   const [ag, runs] = await Promise.all([get("/api/agents?campus_only=true"), get(`/api/clients/${cid}/runs`)]);
-  const cr = runs.filter((r) => r.agent.startsWith("campus_") || r.agent.startsWith("smoe_"));
+  const cr = runs.filter((r) => /^(campus_|smoe_|pia_)/.test(r.agent));
   el.innerHTML = `<section class="card"><h2>Agents Kapsi Campus</h2><p class="sub">Ils travaillent sur les registres de l'établissement. Leurs documents sont produits au statut « À valider » ; ils ne modifient jamais une demande réceptionnée ni une donnée saisie par une personne.</p>
       <div class="grid">${ag.map((a) => `<div class="tile agent ${a.key === "campus_pilote" ? "lead" : ""}"><b>${esc(a.name)}</b><small>${esc(a.desc)}</small><button class="btn sm" data-run="${a.key}" style="margin-top:.6rem">Lancer</button></div>`).join("")}</div></section>
     <section class="card"><h2>Exécutions</h2>${cr.length ? `<ul class="list">${cr.map((r) => `<li data-run-id="${r.id}"><div><b>${esc(r.agent_name)}</b><div class="sub">${esc(r.created_at)}</div></div>${runPill(r.status)}</li>`).join("")}</ul>` : `<p class="sub">Aucune exécution.</p>`}</section>
@@ -227,4 +227,30 @@ CTABS.smoe = async (el, cid, proc, rk) => {
     await send(`/api/clients/${cid}/smoe/${o.code}/${rg.key}`, { data, status: $("[data-nst]", el).value }); toast("Enregistré"); CTABS.smoe(el, cid, o.code, rg.key); };
   $("#sdemo")?.addEventListener("click", (e) => busy(e.currentTarget, async () => { await send(`/api/clients/${cid}/smoe/demo`); toast("Démonstration chargée"); CTABS.smoe(el, cid, o.code); }));
   $("#spil").onclick = async () => { const r = await send(`/api/clients/${cid}/agents/campus_smoe`, { standard: "ISO 21001" }); nav("run", r.run_id); };
+};
+
+/* ------------------------------------------------------------- Pilotes IA : un co-pilote par processus */
+CTABS.pilotes = async (el, cid) => {
+  const P = await get(`/api/clients/${cid}/pilots`);
+  const hcol = (h) => h === null ? "#9a8496" : h >= 75 ? "#1e7a4c" : h >= 50 ? "#b86e00" : "#c92a45";
+  const nal = P.pilots.reduce((a, p) => a + p.alerts.filter((x) => x.level === "alerte").length, 0);
+  el.innerHTML = `<section class="card"><div class="row"><div class="grow"><h2 style="margin:0">Pilotes IA · un co-pilote par processus</h2>
+      <p class="sub" style="margin:.3rem 0 0">Chaque pilote IA surveille son processus, relance, prépare et alerte son pilote humain. Les responsabilités restent attribuées à des personnes (ISO 21001, 5.3) : le pilote humain décide et valide.</p></div>
+      <label class="sub" for="pauto" style="margin:0">Passage automatique</label><select id="pauto" style="max-width:220px"><option value="off">Désactivé</option><option value="quotidien">Chaque jour à 7 h</option><option value="hebdomadaire">Chaque lundi à 7 h</option></select>
+      <button class="btn" id="pall">▶ Lancer les 10 pilotes IA</button></div>
+      <div class="cols" style="margin-top:.6rem"><div><b>Le pilote IA peut</b><ul class="sub">${P.rights.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div><div><b>Le pilote IA ne peut pas</b><ul class="sub">${P.forbidden.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
+      <p class="sub">${nal} point(s) à décider par les pilotes humains. Le passage automatique fonctionne tant que le poste hôte est allumé et Kapsi-Q démarré.</p></section>
+    <div class="pilots">${P.pilots.map((p) => `<section class="card pilot"><div class="row" style="gap:.6rem;align-items:flex-start">
+        <div class="ph" style="--h:${p.health ?? 0};--c:${hcol(p.health)}"><b>${p.health ?? "—"}</b><small>santé</small></div>
+        <div class="grow"><b>${esc(p.ai)}</b><div class="sub">${esc(p.code)} · ${esc(p.process)}</div><div class="sub">${esc(p.mission)}</div></div></div>
+      <label class="fl" style="margin-top:.6rem"><span>Pilote humain (décide et valide)</span><input data-h="${esc(p.code)}" value="${esc(p.human)}"></label>
+      <div class="sub" style="margin:.4rem 0">${p.last_run ? `Dernier passage : ${esc(p.last_run)}` : "Jamais lancé"}</div>
+      ${p.alerts.length ? `<ul class="palerts">${p.alerts.slice(0, 6).map((a) => `<li class="${a.level}"><span>${a.level === "alerte" ? "À décider" : "Info"}</span>${esc(a.message)}</li>`).join("")}${p.alerts.length > 6 ? `<li class="info"><span>…</span>${p.alerts.length - 6} autre(s) dans le point du pilote</li>` : ""}</ul>` : p.last_run ? `<p class="sub">Rien à signaler.</p>` : ""}
+      <details><summary class="sub" style="cursor:pointer">Surveillance, routine et escalade</summary><div class="sub"><b>Surveille</b><ul>${p.watch.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><b>Chaque passage</b><ul>${p.weekly.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><b>Alerte le pilote humain si</b><ul>${p.escalation.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div></details>
+      <button class="btn sm alt" data-pr="${esc(p.code)}" style="margin-top:.5rem">Lancer ce pilote</button></section>`).join("")}</div>`;
+  $("#pauto").value = P.auto;
+  $("#pauto").onchange = async () => { await send(`/api/clients/${cid}/pilots`, { auto: $("#pauto").value }, "PUT"); toast($("#pauto").value === "off" ? "Passage automatique désactivé" : "Passage automatique activé"); };
+  $$("[data-h]", el).forEach((f) => (f.onchange = async () => { if (!f.value.trim()) return toast("Indiquez le pilote humain"); await send(`/api/clients/${cid}/pilots`, { humans: { [f.dataset.h]: f.value } }, "PUT"); saved(); }));
+  $("#pall").onclick = async () => { const r = await send(`/api/clients/${cid}/agents/pia_tous`, { standard: "ISO 21001" }); nav("run", r.run_id); };
+  $$("[data-pr]", el).forEach((b) => (b.onclick = async () => { const r = await send(`/api/clients/${cid}/agents/pia_${b.dataset.pr}`, { standard: "ISO 21001" }); nav("run", r.run_id); }));
 };

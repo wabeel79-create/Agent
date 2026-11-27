@@ -15,10 +15,10 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import agents, campus, engine, export, files, smoe, store
+from . import agents, campus, engine, export, files, pilots, smoe, store
 from .llm import PRESETS, llm
 
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 STATIC = Path(__file__).parent / "static"
 TOKEN = os.getenv("KAPSI_TOKEN", "")
 
@@ -27,6 +27,9 @@ store.init()
 files.init()
 campus.init()
 smoe.init()
+pilots.init()
+if os.environ.get("KAPSI_NO_SCHEDULER") != "1":
+    pilots.start_scheduler()
 llm.configure(store.get_settings())
 
 
@@ -375,7 +378,7 @@ def _host_only(request: Request) -> None:
 
 @app.get("/api/agents", dependencies=A)
 def agent_list(campus_only: bool = False):
-    return [{"key": k, "name": v[0], "desc": v[1]} for k, v in agents.AGENTS.items() if k.startswith(("campus_", "smoe_")) == campus_only]
+    return [{"key": k, "name": v[0], "desc": v[1]} for k, v in agents.AGENTS.items() if k.startswith(("campus_", "smoe_", "pia_")) == campus_only]
 
 
 @app.post("/api/clients/{cid}/agents/{key}", dependencies=A)
@@ -825,6 +828,35 @@ def smoe_demo(cid: int, request: Request):
     if store._rows("SELECT id FROM s_records WHERE client_id=? LIMIT 1", (cid,)):
         raise HTTPException(409, "Cet établissement a déjà des enregistrements SMOE")
     smoe.seed_demo(cid)
+    return {"ok": True}
+
+
+
+# --------------------------------------------------------------------- Pilotes IA
+@app.get("/api/clients/{cid}/pilots", dependencies=A)
+def pilots_status(cid: int):
+    _client_or_404(cid)
+    return {"auto": pilots.auto(cid), "rights": pilots.RIGHTS, "forbidden": pilots.FORBIDDEN, "pilots": pilots.status(cid)}
+
+
+@app.put("/api/clients/{cid}/pilots", dependencies=A)
+def pilots_settings(cid: int, d: dict):
+    _client_or_404(cid)
+    try:
+        if "auto" in d:
+            pilots.set_auto(cid, d["auto"])
+        for code, name in (d.get("humans") or {}).items():
+            if not str(name).strip():
+                raise ValueError("Nom du pilote humain vide")
+            pilots.set_human(cid, code, str(name))
+    except ValueError as e:
+        _bad(e)
+    return pilots_status(cid)
+
+
+@app.post("/api/pilots/alerts/{aid}/ack", dependencies=A)
+def pilots_ack(aid: int):
+    pilots.ack(aid)
     return {"ok": True}
 
 
